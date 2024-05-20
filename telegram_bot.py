@@ -64,6 +64,8 @@ def start(update: Update, context: CallbackContext) -> None:
 
 def settings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     user = us.user_settings[user_id]
     msg = cfg.msg_settings + '\n'
     if user['ip_address']: msg += "IP адреса: " + user['ip_address'] + f" ({user['label']}) \n" 
@@ -80,6 +82,8 @@ def main_menu(update: Update, context: CallbackContext) -> None:
 
 def set_ip(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['awaiting_ip']    = True
     us.user_settings[user_id]['awaiting_label'] = False
     us.save_user_settings()
@@ -87,6 +91,8 @@ def set_ip(update: Update, context: CallbackContext) -> None:
 
 def set_label(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['awaiting_ip']    = False
     us.user_settings[user_id]['awaiting_label'] = True
     us.save_user_settings()
@@ -94,12 +100,16 @@ def set_label(update: Update, context: CallbackContext) -> None:
 
 def set_channel(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['awaiting_channel'] = True
     us.save_user_settings()
     update.message.reply_text(cfg.msg_setchannel, reply_markup=settings_menu_markup)
 
 def handle_input(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     if us.user_settings[user_id]['awaiting_ip']:
         us.user_settings[user_id]['ip_address'] = update.message.text
         us.user_settings[user_id]['awaiting_ip']    = False
@@ -128,6 +138,8 @@ def handle_input(update: Update, context: CallbackContext) -> None:
 def ping(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
 
     if not us.user_settings[user_id]['ip_address']:
         update.message.reply_text(cfg.msg_noip, reply_markup=settings_menu_markup)
@@ -154,6 +166,8 @@ def ping(update: Update, context: CallbackContext) -> None:
 
 def stop(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     if user_id in us.user_jobs.keys():
         schedule.cancel_job(us.user_jobs[user_id])
         us.user_settings[user_id]['ping_job'] = None
@@ -164,6 +178,8 @@ def stop(update: Update, context: CallbackContext) -> None:
 
 def post_all(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['to_bot']     = True
     us.user_settings[user_id]['to_channel'] = False
     msg = cfg.msg_postbot
@@ -175,6 +191,8 @@ def post_all(update: Update, context: CallbackContext) -> None:
 
 def post_to_bot(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['to_bot']     = True
     us.user_settings[user_id]['to_channel'] = False
     msg = cfg.msg_postbot
@@ -185,6 +203,8 @@ def post_to_bot(update: Update, context: CallbackContext) -> None:
 
 def post_to_channel(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     us.user_settings[user_id]['to_bot'] = False
     if us.user_settings[user_id]['channel_id']: 
         # turn on
@@ -198,6 +218,8 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(msg, reply_markup=settings_menu_markup)
 
 def ping_ip(user_id, chat_id):
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     ip_address = us.user_settings[user_id]['ip_address']
     label      = us.user_settings[user_id]['label']
     channel_id = us.user_settings[user_id]['channel_id']
@@ -240,6 +262,8 @@ def ping_ip(user_id, chat_id):
 def ping_now(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    if user_id not in us.user_settings.keys():
+        us.init_user(user_id)
     if not us.user_settings[user_id]['ip_address']:
         update.message.reply_text(cfg.msg_noip, reply_markup=main_menu_markup)
         return
