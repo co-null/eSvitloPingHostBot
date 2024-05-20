@@ -157,7 +157,7 @@ def ping(update: Update, context: CallbackContext) -> None:
     # Initial ping immediately
     ping_ip(user_id, chat_id)
 
-    # Schedule the ping job every 5 minutes
+    # Schedule the ping job every 30 sec
     us.user_jobs[user_id] = schedule.every(30).seconds.do(ping_ip, user_id=user_id, chat_id=chat_id)
     us.user_settings[user_id]['ping_job'] = 'scheduled'
     
@@ -165,7 +165,7 @@ def ping(update: Update, context: CallbackContext) -> None:
     label = us.user_settings[user_id]['label']
 
     update.message.reply_text(
-        f'Тепер бот перевірятиме доступність {label} кожні 5 хвилин і повідомлятиме про зміну статусу',
+        f'Тепер бот перевірятиме доступність {label} кожні 30 сек і повідомлятиме про зміну статусу',
         reply_markup=main_menu_markup
     )
 
