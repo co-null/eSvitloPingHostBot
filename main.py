@@ -32,7 +32,7 @@ main_menu_markup     = ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=T
 settings_menu_markup = ReplyKeyboardMarkup(settings_menu_keyboard, resize_keyboard=True)
 
 def check_ip(ip: str) -> bool:
-    cmd = "ping -n 1 " + ip
+    cmd = "ping -c 1 " + ip
     status = subprocess.getstatusoutput(cmd)
     return status[0]==0
 
