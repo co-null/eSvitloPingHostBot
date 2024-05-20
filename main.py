@@ -60,7 +60,7 @@ def start(update: Update, context: CallbackContext) -> None:
     else:
         # Recreate the job if it was saved previously
         if us.user_settings[user_id]['ping_job']:
-            us.user_jobs[user_id] = schedule.every(5).minutes.do(ping_ip, user_id=user_id, chat_id=chat_id)
+            us.user_jobs[user_id] = schedule.every(30).seconds.do(ping_ip, user_id=user_id, chat_id=chat_id)
 
     update.message.reply_text(cfg.msg_greeting, reply_markup=main_menu_markup)
 
@@ -158,7 +158,7 @@ def ping(update: Update, context: CallbackContext) -> None:
     ping_ip(user_id, chat_id)
 
     # Schedule the ping job every 5 minutes
-    us.user_jobs[user_id] = schedule.every(5).minutes.do(ping_ip, user_id=user_id, chat_id=chat_id)
+    us.user_jobs[user_id] = schedule.every(30).seconds.do(ping_ip, user_id=user_id, chat_id=chat_id)
     us.user_settings[user_id]['ping_job'] = 'scheduled'
     
     us.save_user_settings()
