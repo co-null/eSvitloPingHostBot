@@ -1,6 +1,7 @@
 import config as cfg
 from config import BOT_TOKEN
 import user_settings as us
+import os
 import subprocess
 from telegram.ext import Updater, CommandHandler, CallbackContext, Dispatcher, MessageHandler, Filters
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton
@@ -10,6 +11,7 @@ import threading
 from queue import Queue
 from telegram.utils.request import Request
 from datetime import date, datetime, timedelta
+import fcntl
 
 # Define the main menu keyboard
 main_menu_keyboard = [[KeyboardButton('Отримати статус негайно')], 
@@ -280,7 +282,13 @@ def schedule_pings():
 
 def main():
     global bot
-    #us.user_settings = us.load_user_settings()
+    pid_file = 'bot.pid'
+    fp = open(pid_file, 'w')
+    try:
+        fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        # another instance is running
+        os.sys.exit(1)
 
     request = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request)
