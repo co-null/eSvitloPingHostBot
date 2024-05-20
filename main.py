@@ -131,7 +131,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
     elif us.user_settings[user_id]['awaiting_channel']:
         channel_id = update.message.text
         if channel_id.startswith('https://t.me/'): channel_id.replace('channel_id', '')
-        if not channel_id.startswith('@'): channel_id +='@'
+        if not channel_id.startswith('@'): channel_id = '@' + channel_id
         us.user_settings[user_id]['channel_id'] = update.message.text
         us.user_settings[user_id]['awaiting_channel'] = False
         update.message.reply_text(
