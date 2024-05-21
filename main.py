@@ -8,17 +8,17 @@ from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton
 import schedule
 import time
 import threading
-from telegram.utils.request import Request
+from telegram.utils.request import Request as TRequest
 from datetime import date, datetime, timedelta
 import fcntl
-import flask
+from flask import Flask, request, jsonify
 
 # Initialize Flask app
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
 # Initialize the bot
-request = Request(con_pool_size=8)
-bot = Bot(token=BOT_TOKEN, request=request)
+bot_request = TRequest(con_pool_size=8)
+bot = Bot(token=BOT_TOKEN, request=bot_request)
 
 # Telegram bot initialization
 updater = Updater(bot=bot, use_context=True)
@@ -344,12 +344,12 @@ def send_message():
     sender = data.get('chat_id')
 
     try:
-        caller_ip = flask.request.remote_addr
+        caller_ip = request.remote_addr
         full_message = f"Sent from IP: {caller_ip}"
         bot.send_message(chat_id=sender, text=full_message)
-        return flask.jsonify({"status": "Message sent successfully"}), 200
+        return jsonify({"status": "Message sent successfully"}), 200
     except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
     
 if __name__ == '__main__':
     # Start the Telegram bot
