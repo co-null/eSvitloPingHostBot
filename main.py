@@ -8,14 +8,13 @@ from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton
 import schedule
 import time
 import threading
-#from queue import Queue
 from telegram.utils.request import Request
 from datetime import date, datetime, timedelta
 import fcntl
-from flask import Flask, request, jsonify
+import flask
 
 # Initialize Flask app
-app = Flask(__name__)
+app = flask.Flask(__name__)
 
 # Initialize the bot
 request = Request(con_pool_size=8)
@@ -121,7 +120,11 @@ def set_channel(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(cfg.msg_setchannel, reply_markup=settings_menu_markup)
 
 def handle_input(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.message.from_user.id)
+    try:
+        user_id = str(update.message.from_user.id)
+    except Exception as e:
+        return
+    
     if user_id not in us.user_settings.keys():
         us.init_user(user_id)
     if us.user_settings[user_id]['awaiting_ip']:
@@ -337,16 +340,16 @@ scheduler_thread.start()
 # Flask endpoint to send message
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    data    = request.json
+    data   = request.json
     sender = data.get('chat_id')
 
     try:
-        caller_ip = request.remote_addr
+        caller_ip = flask.request.remote_addr
         full_message = f"Sent from IP: {caller_ip}"
         bot.send_message(chat_id=sender, text=full_message)
-        return jsonify({"status": "Message sent successfully"}), 200
+        return flask.jsonify({"status": "Message sent successfully"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
     
 if __name__ == '__main__':
     # Start the Telegram bot
