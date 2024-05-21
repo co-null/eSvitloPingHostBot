@@ -335,6 +335,7 @@ def main():
 
     updater.start_polling()
     updater.idle()
+    app.run(host='0.0.0.0', port=5000)
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -351,5 +352,5 @@ def send_message():
     
 if __name__ == '__main__':
     main()
-    app.run(host='0.0.0.0', port=5000)
+    
     
