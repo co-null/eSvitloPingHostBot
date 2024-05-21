@@ -338,7 +338,7 @@ scheduler_thread = threading.Thread(target=schedule_pings)
 scheduler_thread.start()
 
 # Flask endpoint to send message
-@app.route('/send_message', methods=['POST'])
+@app.route('/send_message', methods=['GET'])
 def send_message():
     sender = request.args.get('chat_id')
     caller_ip = request.remote_addr
