@@ -8,10 +8,14 @@ from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton
 import schedule
 import time
 import threading
-from queue import Queue
+#from queue import Queue
 from telegram.utils.request import Request
 from datetime import date, datetime, timedelta
 import fcntl
+from flask import Flask, request, jsonify
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Define the main menu keyboard
 main_menu_keyboard = [[KeyboardButton('Отримати статус негайно')], 
@@ -22,10 +26,10 @@ main_menu_keyboard = [[KeyboardButton('Отримати статус негай�
 # Define the settings menu
 settings_menu_keyboard = [[KeyboardButton('Вказати IP адресу'), 
                           KeyboardButton('Вказати назву'), 
-                          KeyboardButton('Вказати канал\n')], 
+                          KeyboardButton('Вказати канал')], 
                           [KeyboardButton('Публікувати всюди'), 
                           KeyboardButton('Публікувати тільки в бот'), 
-                          KeyboardButton('Публікувати тільки в канал\n')],
+                          KeyboardButton('Публікувати тільки в канал')],
                           [KeyboardButton('Головне меню')]]
 
 main_menu_markup     = ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True)
@@ -60,7 +64,7 @@ def start(update: Update, context: CallbackContext) -> None:
     else:
         # Recreate the job if it was saved previously
         if us.user_settings[user_id]['ping_job']:
-            us.user_jobs[user_id] = schedule.every(30).seconds.do(ping_ip, user_id=user_id, chat_id=chat_id)
+            us.user_jobs[user_id] = schedule.every(1).minutes.do(ping_ip, user_id=user_id, chat_id=chat_id)
 
     update.message.reply_text(cfg.msg_greeting, reply_markup=main_menu_markup)
 
@@ -158,14 +162,14 @@ def ping(update: Update, context: CallbackContext) -> None:
     ping_ip(user_id, chat_id)
 
     # Schedule the ping job every 30 sec
-    us.user_jobs[user_id] = schedule.every(30).seconds.do(ping_ip, user_id=user_id, chat_id=chat_id)
+    us.user_jobs[user_id] = schedule.every(1).minutes.do(ping_ip, user_id=user_id, chat_id=chat_id)
     us.user_settings[user_id]['ping_job'] = 'scheduled'
     
     us.save_user_settings()
     label = us.user_settings[user_id]['label']
 
     update.message.reply_text(
-        f'Тепер бот перевірятиме доступність {label} кожні 30 сек і повідомлятиме про зміну статусу',
+        f'Тепер бот перевірятиме доступність {label} кожну хвилину і повідомлятиме про зміну статусу',
         reply_markup=main_menu_markup
     )
 
@@ -332,5 +336,20 @@ def main():
     updater.start_polling()
     updater.idle()
 
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data    = request.json
+    sender = data.get('chat_id')
+
+    try:
+        caller_ip = request.remote_addr
+        full_message = f"Sent from IP: {caller_ip}"
+        bot.send_message(chat_id=sender, text=full_message)
+        return jsonify({"status": "Message sent successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == '__main__':
     main()
+    app.run(host='0.0.0.0', port=5000)
+    
