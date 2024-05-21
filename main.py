@@ -340,12 +340,13 @@ scheduler_thread.start()
 # Flask endpoint to send message
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    data   = request.json
-    sender = data.get('chat_id')
     try:
+        data   = request.json
+        sender = data.get('chat_id')
         caller_ip = request.remote_addr
     except Exception as e:
         caller_ip = 'cannot obtain IP'
+        sender = None
     
     full_message = f"Sent from IP: {caller_ip}"
     print(f'sender={sender}, full_message={full_message}')
