@@ -17,6 +17,14 @@ from flask import Flask, request, jsonify
 # Initialize Flask app
 app = Flask(__name__)
 
+# Initialize the bot
+request = Request(con_pool_size=8)
+bot = Bot(token=BOT_TOKEN, request=request)
+
+# Telegram bot initialization
+updater = Updater(bot=bot, use_context=True)
+dispatcher = updater.dispatcher
+
 # Define the main menu keyboard
 main_menu_keyboard = [[KeyboardButton('Отримати статус негайно')], 
                       [KeyboardButton('Старт моніторингу'),
@@ -287,56 +295,46 @@ def schedule_pings():
         schedule.run_pending()
         time.sleep(1)
 
-def main():
-    global bot
-    pid_file = 'bot.pid'
-    fp = open(pid_file, 'w')
-    try:
-        fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError:
-        # another instance is running
-        os.sys.exit(1)
+pid_file = 'bot.pid'
+fp = open(pid_file, 'w')
+try:
+    fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except IOError:
+    # another instance is running
+    os.sys.exit(1)
 
-    request = Request(con_pool_size=8)
-    bot = Bot(token=BOT_TOKEN, request=request)
+# Register command handlers
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CommandHandler("settings", settings))
+dispatcher.add_handler(CommandHandler("mainmenu", main_menu))
+dispatcher.add_handler(CommandHandler("ping", ping))
+dispatcher.add_handler(CommandHandler("check", ping_now))
+dispatcher.add_handler(CommandHandler("stop", stop))
+dispatcher.add_handler(CommandHandler("setip", set_ip))
+dispatcher.add_handler(CommandHandler("setlabel", set_label))
+dispatcher.add_handler(CommandHandler("setchannel", set_channel))
+dispatcher.add_handler(CommandHandler("postall", post_all))
+dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
+dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
 
-    updater = Updater(bot=bot, use_context=True)
-    dispatcher = updater.dispatcher
+dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), ping))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Налаштування$'), settings))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Головне меню$'), main_menu))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Зупинка моніторингу$'), stop))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP адресу$'), set_ip))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати тільки в канал$'), post_to_channel))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати тільки в бот$'), post_to_bot))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати всюди$'), post_all))
+dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_input))
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("settings", settings))
-    dispatcher.add_handler(CommandHandler("mainmenu", main_menu))
-    dispatcher.add_handler(CommandHandler("ping", ping))
-    dispatcher.add_handler(CommandHandler("check", ping_now))
-    dispatcher.add_handler(CommandHandler("stop", stop))
-    dispatcher.add_handler(CommandHandler("setip", set_ip))
-    dispatcher.add_handler(CommandHandler("setlabel", set_label))
-    dispatcher.add_handler(CommandHandler("setchannel", set_channel))
-    dispatcher.add_handler(CommandHandler("postall", post_all))
-    dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
-    dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
+# Start the scheduler thread
+scheduler_thread = threading.Thread(target=schedule_pings)
+scheduler_thread.start()
 
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), ping))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Налаштування$'), settings))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Головне меню$'), main_menu))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Зупинка моніторингу$'), stop))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP адресу$'), set_ip))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати тільки в канал$'), post_to_channel))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати тільки в бот$'), post_to_bot))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^Публікувати всюди$'), post_all))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_input))
-
-    # Start the scheduler thread
-    scheduler_thread = threading.Thread(target=schedule_pings)
-    scheduler_thread.start()
-
-    updater.start_polling()
-    updater.idle()
-    app.run(host='0.0.0.0', port=5000)
-
+# Flask endpoint to send message
 @app.route('/send_message', methods=['POST'])
 def send_message():
     data    = request.json
@@ -351,6 +349,10 @@ def send_message():
         return jsonify({"error": str(e)}), 500
     
 if __name__ == '__main__':
-    main()
-    
+    # Start the Telegram bot
+    updater.start_polling()
+    #updater.idle()
+
+    # Run the Flask app
+    app.run(host='0.0.0.0', port=5000)   
     
