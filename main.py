@@ -213,7 +213,7 @@ def ping(update: Update, context: CallbackContext) -> None:
         _stop_ping(user_id)
     us.save_user_settings()
 
-def _start_listen(user_id: str, chat_id: str) -> None:
+def _start_listen(user_id: str, chat_id: str):
     # Stop any existing job before starting a new one
     if user_id in us.listeners.keys():
         schedule.cancel_job(us.listeners[user_id])
@@ -223,7 +223,7 @@ def _start_listen(user_id: str, chat_id: str) -> None:
     # Initial check immediately
     _listen(user_id, chat_id)
 
-def _stop_listen(user_id: str) -> None:
+def _stop_listen(user_id: str):
     if user_id in us.listeners.keys():
         schedule.cancel_job(us.listeners[user_id])
     us.user_settings[user_id]['listener'] = False
@@ -281,8 +281,7 @@ def post_to_bot(update: Update, context: CallbackContext) -> None:
         us.user_settings[user_id]['to_bot'] = False
         msg = cfg.msg_nopostbot
     us.save_user_settings()
-    update.message.reply_text(msg)
-    update.message.reply_text(_settings(user_id), reply_markup=settings_menu_markup)
+    update.message.reply_text(msg + "\n" + _settings(user_id), reply_markup=settings_menu_markup)
 
 def post_to_channel(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -302,11 +301,11 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
         us.user_settings[user_id]['to_channel'] = False
         msg = cfg.msg_nopostchannel
     us.save_user_settings()
-    update.message.reply_text(msg)
-    update.message.reply_text(_settings(user_id), reply_markup=settings_menu_markup)
+    update.message.reply_text(msg + "\n" + _settings(user_id), reply_markup=settings_menu_markup)
 
 def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, immediately: bool = False) -> str:
     label = us.user_settings[user_id]['label']
+    msg = ""
     # if last_state is not set
     if not last_state:
         last_state = status

@@ -18,11 +18,11 @@ def load_user_states():
 # Save user settings to file
 def save_user_settings():
     with open(SETTINGS_FILE, 'w') as file:
-        json.dump(user_settings, file)
+        json.dump(SETTINGS_FILE, file)
 
 def save_user_states():
     with open(STATES_FILE, 'w') as file:
-        json.dump(user_settings, file)
+        json.dump(STATES_FILE, file)
 
 def init_user(user_id: str, chat_id: str):
     _user = {}
