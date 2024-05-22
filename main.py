@@ -288,23 +288,23 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
     if user_id not in us.user_settings.keys():
         update.message.reply_text(cfg.msg_error)
         return
-    print(f"Start post_to_channel for {user_id}, to_channel={us.user_settings[user_id]['to_channel']}, channel_id={us.user_settings[user_id]['to_channel']}")
+    update.message.reply_text(f"Start post_to_channel for {user_id}, to_channel={us.user_settings[user_id]['to_channel']}, channel_id={us.user_settings[user_id]['to_channel']}")
     if not us.user_settings[user_id]['to_channel']:
         if us.user_settings[user_id]['channel_id']: 
             # turn on
-            print("turn on")
+            update.message.reply_text("turn on")
             us.user_settings[user_id]['to_channel'] = True
             msg = cfg.msg_postchannel
         else:
-            print("msg_nochannel")
+            update.message.reply_text("msg_nochannel")
             us.user_settings[user_id]['to_channel'] = False
             msg = cfg.msg_nochannel
     else:
         # turn off
-        print("turn off")
+        update.message.reply_text("turn off")
         us.user_settings[user_id]['to_channel'] = False
         msg = cfg.msg_nopostchannel
-    print("save")
+    update.message.reply_text("save")
     us.save_user_settings()
     update.message.reply_text(msg + "\n" + _settings(user_id), reply_markup=settings_menu_markup)
 
