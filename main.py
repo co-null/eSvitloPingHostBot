@@ -103,7 +103,7 @@ def settings(update: Update, context: CallbackContext) -> None:
     if user_id not in us.user_settings.keys():
         update.message.reply_text(cfg.msg_error)
         return
-    update.message.reply_text(_settings(user_id + "\n" + f"Для налаштування слухача робіть виклики на {cfg.LISTENER_URL}{user_id}"), 
+    update.message.reply_text(_settings(user_id) + "\n" + f"Для налаштування слухача робіть виклики на {cfg.LISTENER_URL}{user_id}", 
                               reply_markup=settings_menu_markup)
 
 def main_menu(update: Update, context: CallbackContext) -> None:
