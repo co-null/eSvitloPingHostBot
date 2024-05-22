@@ -52,6 +52,7 @@ def reinit_user(user_id: str, chat_id: str = None):
         if key not in user.keys():
             user_settings[user_id][key] = dummy[key]
     del user_settings['dummy']
+    del user_states['dummy']
 
 def init_states(user_id: str):
     _states = {}
