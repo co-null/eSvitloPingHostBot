@@ -506,10 +506,10 @@ dispatcher.add_handler(MessageHandler(Filters.regex('^Зупинка моніт�
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP$'), set_ip))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
-dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал (так/ні)$'), lambda update, context: post_to_channel(update, context)))
-dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот (так/ні)$'), post_to_bot))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати (так/ні)$'), ping))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Слухати (так/ні)$'), listen))
+dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал \(так/ні\)$'), lambda update, context: post_to_channel(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), post_to_bot))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), ping))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Слухати \(так/ні\)$'), listen))
 dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_input))
 
 # Start the scheduler thread
