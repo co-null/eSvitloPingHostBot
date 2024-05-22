@@ -79,6 +79,7 @@ def start(update: Update, context: CallbackContext) -> None:
             us.user_jobs[user_id] = schedule.every(1).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if us.user_settings[user_id]['listener']:
             us.listeners[user_id] = schedule.every(5).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+        update.message.reply_text("З поверненням!", reply_markup=main_menu_markup)
 
 def _settings(user_id: str) -> str:
     user = us.user_settings[user_id]
@@ -340,7 +341,7 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
     us.save_user_states()
     return msg
 
-def _ping(user_id: str, immediately: bool = False) -> str:
+def _ping_ip(user_id: str, immediately: bool = False) -> str:
     if user_id not in us.user_settings.keys():
         return
     if user_id not in us.user_states.keys():
@@ -366,7 +367,7 @@ def _ping(user_id, chat_id):
     to_bot     = us.user_settings[user_id]['to_bot']
     to_channel = us.user_settings[user_id]['to_channel']
 
-    msg = _ping(user_id, False)
+    msg = _ping_ip(user_id, False)
     if msg and to_bot: 
         bot.send_message(chat_id=chat_id, text=msg)
     if msg and to_channel and channel_id:
@@ -381,7 +382,7 @@ def ping_now(update: Update, context: CallbackContext) -> None:
     if not us.user_settings[user_id]['ip_address']:
         update.message.reply_text(cfg.msg_noip, reply_markup=main_menu_markup)
         return
-    msg = _ping(user_id, True)
+    msg = _ping_ip(user_id, True)
     if us.user_settings[user_id]['last_state'] == 'alive':
         update.message.reply_text(cfg.msg_alive)
     else:
