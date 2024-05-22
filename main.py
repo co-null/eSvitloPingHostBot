@@ -149,7 +149,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         us.user_settings[user_id]['ip_address'] = update.message.text[:15]
         us.user_settings[user_id]['awaiting_ip']      = False
         us.user_settings[user_id]['awaiting_channel'] = False
-        if us.user_settings[user_id]['label'] != '':
+        if not us.user_settings[user_id]['label'] != '':
             us.user_settings[user_id]['awaiting_label'] = True
             update.message.reply_text(f'Вказано IP адресу {update.message.text}. Тепер вкажіть, будь-ласка, назву:')
         else:
@@ -202,16 +202,16 @@ def ping(update: Update, context: CallbackContext) -> None:
             return
         _start_ping(user_id, chat_id)
         label = us.user_settings[user_id]['label']
-        update.message.reply_text(f'Тепер бот перевірятиме доступність {label} кожну хвилину і повідомлятиме про зміну статусу',
-                                  reply_markup=main_menu_markup)
+        msg = f'Тепер бот перевірятиме доступність {label} кожну хвилину і повідомлятиме про зміну статусу'
     else:
         # If need to turn off
         if user_id in us.user_jobs.keys():
-            update.message.reply_text(cfg.msg_stopped, reply_markup=main_menu_markup)
+            msg = cfg.msg_stopped
         else:
-            update.message.reply_text(cfg.msg_notset, reply_markup=main_menu_markup)
+            msg = cfg.msg_notset
         _stop_ping(user_id)
     us.save_user_settings()
+    update.message.reply_text(msg + "\n" + _settings(user_id))
 
 def _start_listen(user_id: str, chat_id: str):
     # Stop any existing job before starting a new one
@@ -238,12 +238,13 @@ def listen(update: Update, context: CallbackContext) -> None:
         # If need to turn on
         _start_listen(user_id, chat_id)
         label = us.user_settings[user_id]['label']
-        update.message.reply_text(f'Тепер бот слухатиме {label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.',
-                                  reply_markup=main_menu_markup)
+        msg = f'Тепер бот слухатиме {label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.'
     else:
         # If need to turn off
         _stop_listen(user_id)
+        msg = 'Режим слухача припинено'
     us.save_user_settings()
+    update.message.reply_text(msg + "\n" + _settings(user_id))
 
 def go(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -305,18 +306,28 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
 
 def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, immediately: bool = False) -> str:
     label = us.user_settings[user_id]['label']
+    now_ts_short = datetime.now().strftime('%H:%M')
     msg = ""
+    if last_state:
+        if datetime.now().day == last_ts.day: 
+            day_label = last_ts.strftime('%H:%M')
+        else: 
+            day_label = last_ts.strftime('%d.%m.%Y %H:%M')
+    else: day_label = now_ts_short
     # if last_state is not set
     if not last_state:
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
         us.user_states[user_id]['last_ts']    = last_ts.strftime('%Y-%m-%d %H:%M:%S')
-        msg = f"{label} тепер моніториться на наявність електрохарчування"
+        if label and label != '':
+            msg = f"{label} тепер моніториться на наявність електрохарчування"
+        else:
+            msg = "Моніториться на наявність електрохарчування"
     # turned on
     elif last_state != status and last_state == 'not reachable':
         delta = datetime.now() - last_ts
-        msg = f"Електрика в {label} з'явилася!\n" + "Світла не було " + get_string_period(delta.seconds)
+        msg = f"Електрика в {label} з'явилася о {now_ts_short}!\n" + "Світла не було " + get_string_period(delta.seconds) + f",\n з {day_label}"
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
@@ -324,7 +335,7 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
     # turned off
     elif last_state != status and last_state == 'alive':
         delta = datetime.now() - last_ts
-        msg = f"Електрику в {label} вимкнули :(\n" + "Світло було " + get_string_period(delta.seconds)
+        msg = f"Електрику в {label} вимкнули о {now_ts_short} :(\n" + "Світло було " + get_string_period(delta.seconds) + f",\n з {day_label}"
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
@@ -334,9 +345,9 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
         delta = datetime.now() - last_ts
         msg = cfg.msg_alive
         if status == 'alive':
-            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds)
+            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds) + f",\n з {day_label}"
         else:
-            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds)
+            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds) + f",\n з {day_label}"
     us.save_user_states()
     return msg
 
@@ -389,36 +400,45 @@ def ping_now(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(msg, reply_markup=main_menu_markup)
 
 def _heard(user_id: str) -> None:
+    msg = None
     if user_id not in us.user_settings.keys():
         return
-    last_state = us.user_states[user_id]['last_state']
-    if us.user_states[user_id]['last_ts']:
-        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-    else: last_ts = None
+    try:
+        last_state = us.user_states[user_id]['last_state']
+        if us.user_states[user_id]['last_ts']:
+            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_ts = None
+        if us.user_states[user_id]['last_heared_ts']:
+            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_heared_ts = None
+    except Exception as e:
+        us.reinit_states(user_id)
+        last_state = us.user_states[user_id]['last_state']
+        if us.user_states[user_id]['last_ts']:
+            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_ts = None
+        if us.user_states[user_id]['last_heared_ts']:
+            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_heared_ts = None
     label = us.user_settings[user_id]['label']
     if label and label != '': label = 'в ' + label
     channel_id = us.user_settings[user_id]['channel_id']
     to_bot     = us.user_settings[user_id]['to_bot']
     to_channel = us.user_settings[user_id]['to_channel']
     chat_id    = us.user_settings[user_id]['chat_id']
-
     # if last_state is not set
     if not last_state:
-        msg = "Моніториться на наявність електрохарчування"
+        status = 'alive'
     # turned on
     elif last_state == 'not reachable':
-        delta = datetime.now() - last_ts
-        msg = f"Електрика {label} з'явилася!\n" + "Світла не було " + get_string_period(delta.seconds)
-    last_ts = datetime.now()
-    us.user_states[user_id]['last_state'] = 'alive'
-    us.user_states[user_id]['last_ts']    = last_ts.strftime('%Y-%m-%d %H:%M:%S')
+        status = 'alive'
+    msg = _state_msg(user_id, status, last_state, last_ts, False)
+    us.user_states[user_id]['last_heared_ts'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     us.save_user_states()
-
     if msg and to_bot: 
         bot.send_message(chat_id=chat_id, text=msg)
     if msg and to_channel and channel_id:
         bot.send_message(chat_id=channel_id, text=msg)
-    return msg
 
 def _listen(user_id, chat_id):
     if user_id not in us.user_settings.keys():
@@ -428,24 +448,45 @@ def _listen(user_id, chat_id):
     if not us.user_settings[user_id]['listener']: 
         # was turned off somehow
         return
-    last_state = us.user_states[user_id]['last_state']
-    if us.user_states[user_id]['last_ts']:
-        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-    else: last_ts = None
+    try:
+        last_state = us.user_states[user_id]['last_state']
+        if us.user_states[user_id]['last_ts']:
+            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_ts = None
+        if us.user_states[user_id]['last_heared_ts']:
+            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_heared_ts = None
+    except Exception as e:
+        us.reinit_states(user_id)
+        last_state = us.user_states[user_id]['last_state']
+        if us.user_states[user_id]['last_ts']:
+            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_ts = None
+        if us.user_states[user_id]['last_heared_ts']:
+            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+        else: last_heared_ts = None
+
     # Do not spam if newer worked
-    if not last_state or not last_ts: 
+    if not last_state or not last_ts or not last_heared_ts: 
         return
-    delta = datetime.now() - last_ts
-    # If > 300 sec 5 mins) consider blackout
-    if delta.seconds < 300: 
+    delta = datetime.now() - last_heared_ts
+    # If >300 sec (5 mins) and was turned on - consider blackout
+    if delta.seconds > 300 and last_state == 'alive':
+        status = 'not reachable'
+    elif last_state == 'alive':
+        # still enabled
         status = 'alive'
-    else: status = 'not reachable'
+    elif delta.seconds <= 300 and last_state == 'not reachable':
+        # turned on, maybe missed
+        status = 'alive'
+    else:    
+        # still turned off
+        status = 'not reachable'
     msg = _state_msg(user_id, status, last_state, last_ts, False)
     channel_id = us.user_settings[user_id]['channel_id']
     to_bot     = us.user_settings[user_id]['to_bot']
     to_channel = us.user_settings[user_id]['to_channel']
 
-    msg = _ping_ip(user_id, False)
     if msg and to_bot: 
         bot.send_message(chat_id=chat_id, text=msg)
     if msg and to_channel and channel_id:
