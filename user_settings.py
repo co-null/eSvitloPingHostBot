@@ -40,25 +40,43 @@ def init_user(user_id: str, chat_id: str):
     user_settings[user_id]    = _user
 
     _states = {}
-    _states['last_state']  = None
-    _states['last_ts']     = None
+    _states['last_state']     = None
+    _states['last_ts']        = None
+    _states['last_heared_ts'] = None
     user_states[user_id] = _states
 
 def reinit_user(user_id: str, chat_id: str = None):
     init_user('dummy', chat_id)
     dummy = user_settings['dummy']
     user  = user_settings[user_id]
+    state = user_states[user_id]
     for key in dummy.keys():
         if key not in user.keys():
             user_settings[user_id][key] = dummy[key]
+        
     del user_settings['dummy']
+    dummy = user_states['dummy']
+    for key in dummy.keys():
+        if key not in state.keys():
+            user_states[user_id][key] = dummy[key]
     del user_states['dummy']
 
 def init_states(user_id: str):
     _states = {}
-    _states['last_state']  = None
-    _states['last_ts']     = None
+    _states['last_state']     = None
+    _states['last_ts']        = None
+    _states['last_heared_ts'] = None
     user_states[user_id] = _states
+
+def reinit_states(user_id: str):
+    init_states('dummy')
+    state = user_states[user_id]
+    dummy = user_states['dummy']
+    for key in dummy.keys():
+        if key not in state.keys():
+            user_states[user_id][key] = dummy[key]
+    del user_states['dummy']
+
 # Dictionary to store user-specific settings
 user_settings = load_user_settings()
 user_states   = load_user_states()

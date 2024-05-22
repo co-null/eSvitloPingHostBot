@@ -1,3 +1,4 @@
+import bot_secrets
 import config as cfg
 import user_settings as us
 import os
@@ -17,7 +18,7 @@ app = Flask(__name__)
 
 # Initialize the bot
 bot_request = TRequest(con_pool_size=8)
-bot         = Bot(token=cfg.BOT_TOKEN, request=bot_request)
+bot         = Bot(token=bot_secrets.BOT_TOKEN, request=bot_request)
 
 # Telegram bot initialization
 updater    = Updater(bot=bot, use_context=True)
@@ -54,7 +55,7 @@ def get_string_period(delta_sec: int) -> str:
     if hours > 0 and hours < 48: 
         hour_str = f"{hours} год."
     elif hours >= 48:
-        hour_str = f"більше 48 год."
+        hour_str = "більше 48 год."
     else: hour_str = ''
     if minutes > 0 and hours < 48:
         min_str = f" {minutes} хв."
@@ -79,22 +80,22 @@ def start(update: Update, context: CallbackContext) -> None:
             us.user_jobs[user_id] = schedule.every(1).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if us.user_settings[user_id]['listener']:
             us.listeners[user_id] = schedule.every(5).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
-        update.message.reply_text("З поверненням!", reply_markup=main_menu_markup)
+        update.message.reply_text(cfg.msg_comeback, reply_markup=main_menu_markup)
 
 def _settings(user_id: str) -> str:
     user = us.user_settings[user_id]
     msg  = cfg.msg_settings + '\n'
     if user['ip_address']: msg += "IP адреса: " + user['ip_address'] + f" ({user['label']}) \n" 
     else: msg += "IP адреса не вказана \n"
-    if user['ping_job']: msg += "Пінг IP адреси ввімкнено\n" 
-    else: msg += "Пінг IP адреси вимкнено\n" 
-    if user['listener']: msg += "Режим слухача ввімкнено\n" 
-    else: msg += "Режим слухача вимкнено\n" 
+    if user['ping_job']: msg += cfg.msg_ippingon 
+    else: msg += cfg.msg_ippingoff
+    if user['listener']: msg += cfg.msg_listeneron
+    else: msg += cfg.msg_listeneroff 
     if user['channel_id']: msg += "Канал: " + user['channel_id'] + "\n" 
-    if user['to_bot']: msg += "Публікація в бот ввімкнена\n"
-    else: msg += "Публікація в бот вимкнена\n"
-    if user['to_channel']: msg += "Публікація в канал ввімкнена\n"
-    else: msg += "Публікація в канал вимкнена\n"
+    if user['to_bot']: msg += cfg.msg_boton
+    else: msg += cfg.msg_botoff
+    if user['to_channel']: msg += cfg.msg_channelon
+    else: msg += cfg.msg_channeloff
     return msg
 
 def settings(update: Update, context: CallbackContext) -> None:
@@ -102,7 +103,8 @@ def settings(update: Update, context: CallbackContext) -> None:
     if user_id not in us.user_settings.keys():
         update.message.reply_text(cfg.msg_error)
         return
-    update.message.reply_text(_settings(user_id), reply_markup=settings_menu_markup)
+    update.message.reply_text(_settings(user_id + "\n" + f"Для налаштування слухача робіть виклики на {cfg.LISTENER_URL}{user_id}"), 
+                              reply_markup=settings_menu_markup)
 
 def main_menu(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(cfg.msg_mainmnu, reply_markup=main_menu_markup)
@@ -164,7 +166,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         
     elif us.user_settings[user_id]['awaiting_channel']:
         channel_id = update.message.text[:255]
-        if channel_id.startswith('https://t.me/'): channel_id.replace('channel_id', '')
+        if channel_id.startswith('https://t.me/'): channel_id.replace('https://t.me/', '')
         if not channel_id.startswith('@'): channel_id = '@' + channel_id
         us.user_settings[user_id]['channel_id'] = channel_id
         us.user_settings[user_id]['awaiting_channel'] = False
@@ -202,7 +204,7 @@ def ping(update: Update, context: CallbackContext) -> None:
             return
         _start_ping(user_id, chat_id)
         label = us.user_settings[user_id]['label']
-        msg = f'Тепер бот перевірятиме доступність {label} кожну хвилину і повідомлятиме про зміну статусу'
+        msg = f'Тепер бот перевірятиме доступність {label} і повідомлятиме про зміну статусу'
     else:
         # If need to turn off
         if user_id in us.user_jobs.keys():
@@ -242,7 +244,7 @@ def listen(update: Update, context: CallbackContext) -> None:
     else:
         # If need to turn off
         _stop_listen(user_id)
-        msg = 'Режим слухача припинено'
+        msg = cfg.msg_listeneroff
     us.save_user_settings()
     update.message.reply_text(msg + "\n" + _settings(user_id))
 
@@ -252,10 +254,11 @@ def go(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(cfg.msg_error)
         return
     if not us.user_settings[user_id]['ping_job'] == 'scheduled':
+        update.message.reply_text(cfg.msg_ippingondetailed)
         ping(update, context)
 
-    if not us.user_settings[user_id]['listener']:
-        listen(update, context)
+    #if not us.user_settings[user_id]['listener']:
+    #    listen(update, context)
 
 def stop(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -325,17 +328,17 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
         else:
             msg = "Моніториться на наявність електрохарчування"
     # turned on
-    elif last_state != status and last_state == 'not reachable':
+    elif last_state != status and last_state == cfg.OFF:
         delta = datetime.now() - last_ts
-        msg = f"Електрика в {label} з'явилася о {now_ts_short}!\n" + "Світла не було " + get_string_period(delta.seconds) + f",\n з {day_label}"
+        msg = f"Електрика в {label} з'явилася о {now_ts_short}!\n" + "Світла не було " + get_string_period(delta.seconds) + f", з {day_label}"
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
         us.user_states[user_id]['last_ts']    = last_ts.strftime('%Y-%m-%d %H:%M:%S')
     # turned off
-    elif last_state != status and last_state == 'alive':
+    elif last_state != status and last_state == cfg.ALIVE:
         delta = datetime.now() - last_ts
-        msg = f"Електрику в {label} вимкнули о {now_ts_short} :(\n" + "Світло було " + get_string_period(delta.seconds) + f",\n з {day_label}"
+        msg = f"Електрику в {label} вимкнули о {now_ts_short} :(\n" + "Світло було " + get_string_period(delta.seconds) + f", з {day_label}"
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
@@ -344,10 +347,10 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
     elif cfg.isPostOK == 'T' or immediately:
         delta = datetime.now() - last_ts
         msg = cfg.msg_alive
-        if status == 'alive':
-            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds) + f",\n з {day_label}"
+        if status == cfg.ALIVE:
+            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds) + f", з {day_label}"
         else:
-            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds) + f",\n з {day_label}"
+            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds) + f", з {day_label}"
     us.save_user_states()
     return msg
 
@@ -363,7 +366,7 @@ def _ping_ip(user_id: str, immediately: bool = False) -> str:
         last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
     else: last_ts = None
     if ip_address:
-        status = 'alive' if check_ip(ip_address) else 'not reachable'
+        status = cfg.ALIVE if check_ip(ip_address) else cfg.OFF
         return _state_msg(user_id, status, last_state, last_ts, immediately)
     else: return
 
@@ -390,13 +393,9 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(cfg.msg_error)
         return
     if not us.user_settings[user_id]['ip_address']:
-        update.message.reply_text(cfg.msg_noip, reply_markup=main_menu_markup)
+        update.message.reply_text(cfg.msg_noip)
         return
     msg = _ping_ip(user_id, True)
-    if us.user_states[user_id]['last_state'] == 'alive':
-        update.message.reply_text(cfg.msg_alive)
-    else:
-        update.message.reply_text(cfg.msg_blackout)
     update.message.reply_text(msg, reply_markup=main_menu_markup)
 
 def _heard(user_id: str) -> None:
@@ -428,10 +427,10 @@ def _heard(user_id: str) -> None:
     chat_id    = us.user_settings[user_id]['chat_id']
     # if last_state is not set
     if not last_state:
-        status = 'alive'
+        status = cfg.ALIVE
     # turned on
-    elif last_state == 'not reachable':
-        status = 'alive'
+    elif last_state == cfg.OFF:
+        status = cfg.ALIVE
     msg = _state_msg(user_id, status, last_state, last_ts, False)
     us.user_states[user_id]['last_heared_ts'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     us.save_user_states()
@@ -471,17 +470,17 @@ def _listen(user_id, chat_id):
         return
     delta = datetime.now() - last_heared_ts
     # If >300 sec (5 mins) and was turned on - consider blackout
-    if delta.seconds > 300 and last_state == 'alive':
-        status = 'not reachable'
-    elif last_state == 'alive':
+    if delta.seconds > 300 and last_state == cfg.ALIVE:
+        status = cfg.OFF
+    elif last_state == cfg.ALIVE:
         # still enabled
-        status = 'alive'
-    elif delta.seconds <= 300 and last_state == 'not reachable':
+        status = cfg.ALIVE
+    elif delta.seconds <= 300 and last_state == cfg.OFF:
         # turned on, maybe missed
-        status = 'alive'
+        status = cfg.ALIVE
     else:    
         # still turned off
-        status = 'not reachable'
+        status = cfg.OFF
     msg = _state_msg(user_id, status, last_state, last_ts, False)
     channel_id = us.user_settings[user_id]['channel_id']
     to_bot     = us.user_settings[user_id]['to_bot']
@@ -553,8 +552,8 @@ scheduler_thread = threading.Thread(target=schedule_pings)
 scheduler_thread.start()
 
 # Flask endpoint to send message
-@app.route('/send_message', methods=['GET'])
-def send_message():
+@app.route('/send', methods=['GET'])
+def send():
     sender = request.args.get('chat_id')
     #caller_ip = request.remote_addr
     if not sender:
