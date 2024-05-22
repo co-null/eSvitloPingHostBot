@@ -73,6 +73,7 @@ def start(update: Update, context: CallbackContext) -> None:
         us.save_user_settings()
         update.message.reply_text(cfg.msg_greeting, reply_markup=main_menu_markup)
     else:
+        us.reinit_user(user_id, chat_id)
         # Recreate the jobs if saved previously
         if us.user_settings[user_id]['ping_job']:
             us.user_jobs[user_id] = schedule.every(1).minutes.do(_ping, user_id=user_id, chat_id=chat_id)

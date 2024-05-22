@@ -44,8 +44,8 @@ def init_user(user_id: str, chat_id: str):
     _states['last_ts']     = None
     user_states[user_id] = _states
 
-def reinit_user(user_id: str):
-    init_user('dummy', None)
+def reinit_user(user_id: str, chat_id: str = None):
+    init_user('dummy', chat_id)
     dummy = user_settings['dummy']
     user  = user_settings[user_id]
     for key in dummy.keys():
