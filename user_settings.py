@@ -1,6 +1,6 @@
 import os
 import json
-from config import SETTINGS_FILE
+from config import SETTINGS_FILE, STATES_FILE
 
 # Load user settings from file
 def load_user_settings():
@@ -9,14 +9,26 @@ def load_user_settings():
             return json.load(file)
     return {}
 
+def load_user_states():
+    if os.path.exists(STATES_FILE):
+        with open(STATES_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
 # Save user settings to file
 def save_user_settings():
     with open(SETTINGS_FILE, 'w') as file:
         json.dump(user_settings, file)
 
-def init_user(user_id: str):
+def save_user_states():
+    with open(STATES_FILE, 'w') as file:
+        json.dump(user_settings, file)
+
+def init_user(user_id: str, chat_id: str):
     _user = {}
+    _user['chat_id']          = chat_id
     _user['ip_address']       = None
+    _user['listener']         = False
     _user['label']            = ''
     _user['channel_id']       = None
     _user['to_bot']           = True
@@ -25,10 +37,20 @@ def init_user(user_id: str):
     _user['awaiting_ip']      = False
     _user['awaiting_label']   = False
     _user['awaiting_channel'] = False
-    _user['last_state']       = None
-    _user['last_ts']          = None
-    user_settings[user_id] = _user
+    user_settings[user_id]    = _user
 
+    _states = {}
+    _states['last_state']  = None
+    _states['last_ts']     = None
+    user_states[user_id] = _states
+
+def init_states(user_id: str):
+    _states = {}
+    _states['last_state']  = None
+    _states['last_ts']     = None
+    user_states[user_id] = _states
 # Dictionary to store user-specific settings
 user_settings = load_user_settings()
-user_jobs = {}
+user_states   = load_user_states()
+user_jobs     = {}
+listeners     = {}
