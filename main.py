@@ -288,23 +288,18 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
     if user_id not in us.user_settings.keys():
         update.message.reply_text(cfg.msg_error)
         return
-    update.message.reply_text(f"Start post_to_channel for {user_id}, to_channel={us.user_settings[user_id]['to_channel']}, channel_id={us.user_settings[user_id]['to_channel']}")
     if not us.user_settings[user_id]['to_channel']:
         if us.user_settings[user_id]['channel_id']: 
             # turn on
-            update.message.reply_text("turn on")
             us.user_settings[user_id]['to_channel'] = True
             msg = cfg.msg_postchannel
         else:
-            update.message.reply_text("msg_nochannel")
             us.user_settings[user_id]['to_channel'] = False
             msg = cfg.msg_nochannel
     else:
         # turn off
-        update.message.reply_text("turn off")
         us.user_settings[user_id]['to_channel'] = False
         msg = cfg.msg_nopostchannel
-    update.message.reply_text("save")
     us.save_user_settings()
     update.message.reply_text(msg + "\n" + _settings(user_id), reply_markup=settings_menu_markup)
 
@@ -507,9 +502,9 @@ dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP$'), set_
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал \(так/ні\)$'), lambda update, context: post_to_channel(update, context)))
-dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), post_to_bot))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), ping))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Слухати \(так/ні\)$'), listen))
+dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), lambda update, context: post_to_bot(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), lambda update, context: ping(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Слухати \(так/ні\)$'), lambda update, context: listen(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_input))
 
 # Start the scheduler thread
