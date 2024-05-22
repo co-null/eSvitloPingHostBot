@@ -349,7 +349,7 @@ def _ping_ip(user_id: str, immediately: bool = False) -> str:
     ip_address = us.user_settings[user_id]['ip_address']
     last_state = us.user_states[user_id]['last_state']
     if us.user_states[user_id]['last_ts']:
-        last_ts = datetime.strptime(us.user_settings[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
     else: last_ts = None
     if ip_address:
         status = 'alive' if check_ip(ip_address) else 'not reachable'
@@ -382,7 +382,7 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(cfg.msg_noip, reply_markup=main_menu_markup)
         return
     msg = _ping_ip(user_id, True)
-    if us.user_settings[user_id]['last_state'] == 'alive':
+    if us.user_states[user_id]['last_state'] == 'alive':
         update.message.reply_text(cfg.msg_alive)
     else:
         update.message.reply_text(cfg.msg_blackout)
@@ -393,7 +393,7 @@ def _heard(user_id: str) -> None:
         return
     last_state = us.user_states[user_id]['last_state']
     if us.user_states[user_id]['last_ts']:
-        last_ts = datetime.strptime(us.user_settings[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
     else: last_ts = None
     label = us.user_settings[user_id]['label']
     if label and label != '': label = 'в ' + label
@@ -430,7 +430,7 @@ def _listen(user_id, chat_id):
         return
     last_state = us.user_states[user_id]['last_state']
     if us.user_states[user_id]['last_ts']:
-        last_ts = datetime.strptime(us.user_settings[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
     else: last_ts = None
     # Do not spam if newer worked
     if not last_state or not last_ts: 
