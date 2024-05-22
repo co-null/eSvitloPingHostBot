@@ -44,6 +44,15 @@ def init_user(user_id: str, chat_id: str):
     _states['last_ts']     = None
     user_states[user_id] = _states
 
+def reinit_user(user_id: str):
+    init_user('dummy', None)
+    dummy = user_settings['dummy']
+    user  = user_settings[user_id]
+    for key in dummy.keys():
+        if key not in user.keys():
+            user_settings[user_id][key] = dummy[key]
+    del user_settings['dummy']
+
 def init_states(user_id: str):
     _states = {}
     _states['last_state']  = None
