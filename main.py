@@ -457,7 +457,7 @@ def _listen(user_id, chat_id):
     # Do not spam if newer worked
     if not last_state or not last_ts or not last_heared_ts: 
         return
-    delta = datetime.now() - last_heared_ts
+    delta = datetime.now() - max(last_heared_ts, last_ts)
     # If >300 sec (5 mins) and was turned on - consider blackout
     if delta.seconds > 300 and last_state == cfg.ALIVE:
         status = cfg.OFF
