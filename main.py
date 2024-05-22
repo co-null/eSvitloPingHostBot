@@ -465,14 +465,17 @@ except IOError:
 
 # Up jobs if were saved
 for user_id in us.user_settings.keys():
-    if us.user_settings[user_id]['ping_job']:
-        if user_id in us.user_jobs.keys():
-            schedule.cancel_job(us.user_jobs[user_id])
-        us.user_jobs[user_id] = schedule.every(1).minutes.do(_ping, user_id=user_id, chat_id=us.user_settings[user_id]['chat_id'])
-    if us.user_settings[user_id]['listener']:
-        if user_id in us.listeners.keys():
-            schedule.cancel_job(us.listeners[user_id])
-        us.listeners[user_id] = schedule.every(5).minutes.do(_listen, user_id=user_id, chat_id=us.user_settings[user_id]['chat_id'])
+    try:
+        if us.user_settings[user_id]['ping_job']:
+            if user_id in us.user_jobs.keys():
+                schedule.cancel_job(us.user_jobs[user_id])
+            us.user_jobs[user_id] = schedule.every(1).minutes.do(_ping, user_id=user_id, chat_id=us.user_settings[user_id]['chat_id'])
+        if us.user_settings[user_id]['listener']:
+            if user_id in us.listeners.keys():
+                schedule.cancel_job(us.listeners[user_id])
+            us.listeners[user_id] = schedule.every(5).minutes.do(_listen, user_id=user_id, chat_id=us.user_settings[user_id]['chat_id'])
+    except Exception as e:
+        continue
 
 # Register command handlers
 dispatcher.add_handler(CommandHandler("start", start))
