@@ -240,13 +240,13 @@ def listen(update: Update, context: CallbackContext) -> None:
         # If need to turn on
         _start_listen(user_id, chat_id)
         label = us.user_settings[user_id]['label']
-        msg = f'Тепер бот слухатиме {label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.'
+        msg = f'Тепер бот слухатиме {label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.\n'
     else:
         # If need to turn off
         _stop_listen(user_id)
         msg = cfg.msg_listeneroff
     us.save_user_settings()
-    update.message.reply_text(msg + "\n" + _settings(user_id))
+    update.message.reply_text(msg + _settings(user_id))
 
 def go(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -330,7 +330,7 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
     # turned on
     elif last_state != status and last_state == cfg.OFF:
         delta = datetime.now() - last_ts
-        msg = f"Електрика в {label} з'явилася о {now_ts_short}!\n" + "Світла не було " + get_string_period(delta.seconds) + f", з {day_label}"
+        msg = f"Електрику за адресою {label} увімкнули!\n" + "Світла не було " + get_string_period(delta.seconds)
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
@@ -338,7 +338,7 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
     # turned off
     elif last_state != status and last_state == cfg.ALIVE:
         delta = datetime.now() - last_ts
-        msg = f"Електрику в {label} вимкнули о {now_ts_short} :(\n" + "Світло було " + get_string_period(delta.seconds) + f", з {day_label}"
+        msg = f"Електрику за адресою {label} вимкнули :(\n" + "Світло було " + get_string_period(delta.seconds)
         last_state = status
         last_ts    = datetime.now()
         us.user_states[user_id]['last_state'] = status
@@ -348,9 +348,9 @@ def _state_msg(user_id: str, status: str, last_state: str, last_ts: datetime, im
         delta = datetime.now() - last_ts
         msg = cfg.msg_alive
         if status == cfg.ALIVE:
-            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds) + f", з {day_label}"
+            msg = msg + "\n" + "Світло є вже " + get_string_period(delta.seconds)
         else:
-            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds) + f", з {day_label}"
+            msg = msg + "\n" + "Світла немає вже " + get_string_period(delta.seconds)
     us.save_user_states()
     return msg
 
@@ -402,36 +402,28 @@ def _heard(user_id: str) -> None:
     msg = None
     if user_id not in us.user_settings.keys():
         return
-    try:
-        last_state = us.user_states[user_id]['last_state']
-        if us.user_states[user_id]['last_ts']:
-            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_ts = None
-        if us.user_states[user_id]['last_heared_ts']:
-            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_heared_ts = None
-    except Exception as e:
-        us.reinit_states(user_id)
-        last_state = us.user_states[user_id]['last_state']
-        if us.user_states[user_id]['last_ts']:
-            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_ts = None
-        if us.user_states[user_id]['last_heared_ts']:
-            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_heared_ts = None
+    if 'last_state' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_state'] = None
+    if 'last_ts' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_ts'] = None
+    if 'last_heared_ts' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_heared_ts'] = None
+
+    last_state = us.user_states[user_id]['last_state']
+    if us.user_states[user_id]['last_ts']:
+        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+    else: last_ts = None
+    if us.user_states[user_id]['last_heared_ts']:
+        last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+    else: last_heared_ts = None
+
     label = us.user_settings[user_id]['label']
     if label and label != '': label = 'в ' + label
     channel_id = us.user_settings[user_id]['channel_id']
     to_bot     = us.user_settings[user_id]['to_bot']
     to_channel = us.user_settings[user_id]['to_channel']
     chat_id    = us.user_settings[user_id]['chat_id']
-    # if last_state is not set
-    if not last_state:
-        status = cfg.ALIVE
-    # turned on
-    elif last_state == cfg.OFF:
-        status = cfg.ALIVE
-    msg = _state_msg(user_id, status, last_state, last_ts, False)
+    msg = _state_msg(user_id, cfg.ALIVE, last_state, last_ts, False)
     us.user_states[user_id]['last_heared_ts'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     us.save_user_states()
     if msg and to_bot: 
@@ -447,23 +439,20 @@ def _listen(user_id, chat_id):
     if not us.user_settings[user_id]['listener']: 
         # was turned off somehow
         return
-    try:
-        last_state = us.user_states[user_id]['last_state']
-        if us.user_states[user_id]['last_ts']:
-            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_ts = None
-        if us.user_states[user_id]['last_heared_ts']:
-            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_heared_ts = None
-    except Exception as e:
-        us.reinit_states(user_id)
-        last_state = us.user_states[user_id]['last_state']
-        if us.user_states[user_id]['last_ts']:
-            last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_ts = None
-        if us.user_states[user_id]['last_heared_ts']:
-            last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
-        else: last_heared_ts = None
+    if 'last_state' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_state'] = None
+    if 'last_ts' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_ts'] = None
+    if 'last_heared_ts' not in us.user_states[user_id].keys():
+        us.user_states[user_id]['last_heared_ts'] = None
+
+    last_state = us.user_states[user_id]['last_state']
+    if us.user_states[user_id]['last_ts']:
+        last_ts = datetime.strptime(us.user_states[user_id]['last_ts'], '%Y-%m-%d %H:%M:%S')
+    else: last_ts = None
+    if us.user_states[user_id]['last_heared_ts']:
+        last_heared_ts = datetime.strptime(us.user_states[user_id]['last_heared_ts'], '%Y-%m-%d %H:%M:%S')
+    else: last_heared_ts = None
 
     # Do not spam if newer worked
     if not last_state or not last_ts or not last_heared_ts: 
