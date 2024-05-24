@@ -32,11 +32,11 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     # turned on
     if user.last_state and user.last_state != status and user.last_state == cfg.OFF:
         delta = datetime.now() - user.last_ts
-        msg += f"💡*{now_ts_short}* Юху! Світло з нами!\n" + "Було відсутнє " + verbiages.get_string_period(delta.seconds)
+        msg += f"💡*{now_ts_short}* Юху! Світло з нами!\n" + "⏱Було відсутнє " + verbiages.get_string_period(delta.seconds)
     # turned off
     elif user.last_state and user.last_state != status and user.last_state == cfg.ALIVE:
         delta = datetime.now() - user.last_ts
-        msg += f"🔦*{now_ts_short}* Йой… От халепа 😒\n" + "Було наявне " + verbiages.get_string_period(delta.seconds)
+        msg += f"🔦*{now_ts_short}* Йой… От халепа 😒\n" + "⏱Було наявне " + verbiages.get_string_period(delta.seconds)
     # same
     elif cfg.isPostOK == 'T' or immediately:
         delta = datetime.now() - user.last_ts
