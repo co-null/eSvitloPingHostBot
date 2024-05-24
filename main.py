@@ -12,9 +12,9 @@ import time
 import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', filename=cfg.LOG_FILE, encoding='utf-8', level=logging.ERROR)
+#import logging
+#logger = logging.getLogger(__name__)
+#logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', filename=cfg.LOG_FILE, encoding='utf-8', level=logging.ERROR)
 
 PARSE_MODE = constants.PARSEMODE_MARKDOWN_V2
 # Initialize Flask app
