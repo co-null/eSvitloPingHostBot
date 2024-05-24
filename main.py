@@ -332,14 +332,17 @@ def _heard(user_id: str) -> None:
     if user_id not in us.user_settings.keys():
         return
     user = us.User(user_id, us.user_settings[user_id]['chat_id'])
-    msg  = actions.get_state_msg(user, cfg.ALIVE, False)
-    msg  = utils.get_text_safe_to_markdown(msg)
-    user.last_heared_ts = datetime.now()
-    user.save_state()
-    if msg and user.to_bot: 
-        bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
-    if msg and user.to_channel and user.channel_id:
-        bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+    if user.listener:
+        msg  = actions.get_state_msg(user, cfg.ALIVE, False)
+        msg  = utils.get_text_safe_to_markdown(msg)
+        user.last_state     = cfg.ALIVE
+        user.last_ts        = datetime.now()
+        user.last_heared_ts = datetime.now()
+        user.save_state()
+        if msg and user.to_bot: 
+            bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+        if msg and user.to_channel and user.channel_id:
+            bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def _listen(user_id, chat_id):
     if user_id not in us.user_settings.keys():
@@ -364,11 +367,15 @@ def _listen(user_id, chat_id):
     else:    
         # still turned off
         status = cfg.OFF
+    if status==user.last_state: changed = False
+    else: changed = True
+    user.last_ts = max(user.last_heared_ts, user.last_ts)
     msg = actions.get_state_msg(user, status, False)
     msg = utils.get_text_safe_to_markdown(msg)
-    if msg and user.to_bot: 
+    user.last_state = status
+    if changed and msg and user.to_bot: 
         bot.send_message(chat_id=chat_id, text=msg, parse_mode=PARSE_MODE)
-    if msg and user.to_channel and user.channel_id:
+    if changed and msg and user.to_channel and user.channel_id:
         bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def schedule_pings():
