@@ -300,12 +300,14 @@ def _ping(user_id, chat_id):
         try:
             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
         except Exception as e:
-            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+            #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
     if msg and user.to_channel and user.channel_id:
         try:
             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
         except Exception as e:
-            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+            #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
     user.save_state()
 
 def ping_now(update: Update, context: CallbackContext) -> None:
