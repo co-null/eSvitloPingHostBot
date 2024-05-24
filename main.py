@@ -331,7 +331,7 @@ def _heard(user_id: str) -> None:
     msg = None
     if user_id not in us.user_settings.keys():
         return
-    user = us.User(user_id, us.user_states[user_id]['chat_id'])
+    user = us.User(user_id, us.user_settings[user_id]['chat_id'])
     msg  = actions.get_state_msg(user, cfg.ALIVE, False)
     msg  = utils.get_text_safe_to_markdown(msg)
     user.last_heared_ts = datetime.now()
