@@ -42,8 +42,8 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
         delta = datetime.now() - user.last_ts
         if status == cfg.ALIVE:
             msg += cfg.msg_alive
-            msg += "\n" + "⏱Світло є вже *" + verbiages.get_string_period(delta.seconds) + "*"
+            msg += "\n" + "⏱Світло є вже *" + verbiages.get_string_period(86400*delta.days + delta.seconds) + "*"
         else:
             msg += cfg.msg_blackout
-            msg += "\n" + "⏱Світла немає вже *" + verbiages.get_string_period(delta.seconds) + "*"
+            msg += "\n" + "⏱Світла немає вже *" + verbiages.get_string_period(86400*delta.days + delta.seconds) + "*"
     return msg
