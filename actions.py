@@ -32,18 +32,18 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     # turned on
     if user.last_state and user.last_state != status and user.last_state == cfg.OFF:
         delta = datetime.now() - user.last_ts
-        msg += f"💡*{now_ts_short}* Юху! Світло з нами!\n" + "Було відсутнє " + verbiages.get_string_period(delta.seconds)
+        msg += f"💡*{now_ts_short}* Юху! Світло повернулося!\n" + "⏱Було відсутнє *" + verbiages.get_string_period(86400*delta.days + delta.seconds) + "*"
     # turned off
     elif user.last_state and user.last_state != status and user.last_state == cfg.ALIVE:
         delta = datetime.now() - user.last_ts
-        msg += f"🔦*{now_ts_short}* Йой… От халепа 😒\n" + "Було наявне " + verbiages.get_string_period(delta.seconds)
+        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову без світла 😒\n" + "⏱Було наявне *" + verbiages.get_string_period(86400*delta.days + delta.seconds) + "*"
     # same
     elif cfg.isPostOK == 'T' or immediately:
         delta = datetime.now() - user.last_ts
         if status == cfg.ALIVE:
             msg += cfg.msg_alive
-            msg += "\n" + "Світло є вже " + verbiages.get_string_period(delta.seconds)
+            msg += "\n" + "⏱Світло є вже *" + verbiages.get_string_period(delta.seconds) + "*"
         else:
             msg += cfg.msg_blackout
-            msg += "\n" + "Світла немає вже " + verbiages.get_string_period(delta.seconds)
+            msg += "\n" + "⏱Світла немає вже *" + verbiages.get_string_period(delta.seconds) + "*"
     return msg
