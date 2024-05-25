@@ -3,6 +3,7 @@ STATES_FILE = 'user_states.json'
 LOG_FILE = 'errors.log'
 TZ = 'Europe/Kiev'
 LISTENER_URL = 'http://35.193.236.121:5000/send?chat_id='
+LOCAL_URL = 'http://127.0.0.1:5000/send?chat_id='
 ALIVE='alive'
 OFF='not reachable'
 SHEDULE_PING=1

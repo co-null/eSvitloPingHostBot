@@ -71,7 +71,11 @@ def settings(update: Update, context: CallbackContext) -> None:
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
         return
-    update.message.reply_text(verbiages.get_settings(user_id) + "\n" + f"Для налаштування слухача робіть виклики на {cfg.LISTENER_URL}{user_id}", 
+    if utils.get_system() == 'windows':
+        link = cfg.LOCAL_URL + user_id
+    else: link = cfg.LISTENER_URL + user_id
+    link = f"Для налаштування слухача робіть виклики на {link}"
+    update.message.reply_text(verbiages.get_settings(user_id) + "\n" + link, 
                               reply_markup=settings_menu_markup)
 
 def main_menu(update: Update, context: CallbackContext) -> None:
@@ -332,14 +336,17 @@ def _heard(user_id: str) -> None:
     if user_id not in us.user_settings.keys():
         return
     user = us.User(user_id, us.user_settings[user_id]['chat_id'])
-    msg  = actions.get_state_msg(user, cfg.ALIVE, False)
-    msg  = utils.get_text_safe_to_markdown(msg)
-    user.last_heared_ts = datetime.now()
-    user.save_state()
-    if msg and user.to_bot: 
-        bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
-    if msg and user.to_channel and user.channel_id:
-        bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+    if user.listener:
+        msg  = actions.get_state_msg(user, cfg.ALIVE, False)
+        msg  = utils.get_text_safe_to_markdown(msg)
+        user.last_state     = cfg.ALIVE
+        user.last_ts        = datetime.now()
+        user.last_heared_ts = datetime.now()
+        user.save_state()
+        if msg and user.to_bot: 
+            bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+        if msg and user.to_channel and user.channel_id:
+            bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def _listen(user_id, chat_id):
     if user_id not in us.user_settings.keys():
@@ -353,22 +360,28 @@ def _listen(user_id, chat_id):
         return
     delta = datetime.now() - max(user.last_heared_ts, user.last_ts)
     # If >300 sec (5 mins) and was turned on - consider blackout
-    if delta.seconds > 300 and user.last_state == cfg.ALIVE:
+    seconds = 86400*delta.days + delta.seconds
+    if seconds > 300 and user.last_state == cfg.ALIVE:
         status = cfg.OFF
     elif user.last_state == cfg.ALIVE:
         # still enabled
         status = cfg.ALIVE
-    elif delta.seconds <= 300 and user.last_state == cfg.OFF:
+    elif seconds <= 300 and user.last_state == cfg.OFF:
         # turned on, maybe missed
         status = cfg.ALIVE
     else:    
         # still turned off
         status = cfg.OFF
+    if status==user.last_state: changed = False
+    else: changed = True
+    user.last_ts = max(user.last_heared_ts, user.last_ts)
     msg = actions.get_state_msg(user, status, False)
     msg = utils.get_text_safe_to_markdown(msg)
-    if msg and user.to_bot: 
+    user.last_state = status
+    user.save_state()
+    if changed and msg and user.to_bot: 
         bot.send_message(chat_id=chat_id, text=msg, parse_mode=PARSE_MODE)
-    if msg and user.to_channel and user.channel_id:
+    if changed and msg and user.to_channel and user.channel_id:
         bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def schedule_pings():
