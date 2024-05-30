@@ -19,6 +19,11 @@ class User:
             self.awaiting_ip: bool        = False
             self.awaiting_label: bool     = False
             self.awaiting_channel: bool   = False
+            self.awaiting_city: bool      = False
+            self.awaiting_group: bool     = False
+            self.has_schedule             = False
+            self.city                     = None
+            self.group                    = None
             self.last_state: str          = None
             self.last_ts: datetime        = None
             self.last_heared_ts: datetime = None
@@ -36,6 +41,11 @@ class User:
             self.awaiting_ip: bool        = utils.get_key_safe(_user, 'awaiting_ip', False)
             self.awaiting_label: bool     = utils.get_key_safe(_user, 'awaiting_label', False)
             self.awaiting_channel: bool   = utils.get_key_safe(_user, 'awaiting_channel', False)
+            self.awaiting_city: bool      = utils.get_key_safe(_user, 'awaiting_city', False)
+            self.awaiting_group: bool     = utils.get_key_safe(_user, 'awaiting_group', False)
+            self.has_schedule: bool       = utils.get_key_safe(_user, 'has_schedule', False)
+            self.city: str                = utils.get_key_safe(_user, 'city', None)
+            self.group: str              = utils.get_key_safe(_user, 'group', None)
             self.last_state: str          = utils.get_key_safe(_state, 'last_state', None)
 
             date_str = utils.get_key_safe(_state, 'last_ts', None)
@@ -71,6 +81,11 @@ class User:
         _user['awaiting_ip']      = self.awaiting_ip
         _user['awaiting_label']   = self.awaiting_label
         _user['awaiting_channel'] = self.awaiting_channel
+        _user['awaiting_city']    = self.awaiting_city
+        _user['awaiting_group']   = self.awaiting_group
+        _user['has_schedule']     = self.has_schedule
+        _user['city']             = self.city
+        _user['group']            = self.group
         _state = utils.get_key_safe(user_states, self.user_id, {})
         _state['last_state']     = self.last_state
         if self.last_ts:
