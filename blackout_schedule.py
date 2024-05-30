@@ -109,8 +109,8 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
 
 def get_windows_analysis(city:str, group_id: str) -> dict:
     now_ts  = datetime.now(use_tz)
-    for city in bo_cities:
-        if bo_cities[city] not in blackout_schedule.keys():
+    for city_key in bo_cities:
+        if bo_cities[city_key] not in blackout_schedule.keys():
             get_blackout_schedule()
             time.sleep(5)
     return get_window_by_ts(now_ts, city, group_id)
