@@ -4,6 +4,7 @@ import user_settings as us
 import utils
 import verbiages
 import actions
+import blackout_schedule as bos
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, constants
 from telegram.utils.request import Request as TRequest
@@ -41,7 +42,8 @@ settings_menu_keyboard = [[KeyboardButton('Вказати IP'),
                           [KeyboardButton('-> в бот (так/ні)'), 
                           KeyboardButton('-> в канал (так/ні)')], 
                           [KeyboardButton('Пінгувати (так/ні)'),
-                           KeyboardButton('Слухати (так/ні)')],
+                           KeyboardButton('Слухати (так/ні)'),
+                           KeyboardButton('Графік')],
                           [KeyboardButton('Головне меню')]]
 
 main_menu_markup     = ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True)
@@ -65,6 +67,7 @@ def start(update: Update, context: CallbackContext) -> None:
         if user.listener:
             us.listeners[user_id] = schedule.every(cfg.SHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
         reply_md(cfg.msg_comeback, update, reply_markup=main_menu_markup)
+    bos.get_blackout_schedule()
 
 def settings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -91,6 +94,8 @@ def set_ip(update: Update, context: CallbackContext) -> None:
     user.awaiting_ip      = True
     user.awaiting_label   = False
     user.awaiting_channel = False
+    user.awaiting_city    = False
+    user.awaiting_group   = False
     user.save()
     reply_md(cfg.msg_setip, update, reply_markup=settings_menu_markup)
 
@@ -103,6 +108,8 @@ def set_label(update: Update, context: CallbackContext) -> None:
     user.awaiting_ip      = False
     user.awaiting_label   = True
     user.awaiting_channel = False
+    user.awaiting_city    = False
+    user.awaiting_group   = False
     user.save()
     reply_md(cfg.msg_setlabel, update, reply_markup=settings_menu_markup)
 
@@ -117,6 +124,23 @@ def set_channel(update: Update, context: CallbackContext) -> None:
     user.awaiting_channel = True
     user.save()
     reply_md(cfg.msg_setchannel, update, reply_markup=settings_menu_markup)
+
+def yasno_schedule(update: Update, context: CallbackContext) -> None:
+    user_id = str(update.message.from_user.id)
+    chat_id = update.message.chat_id
+    if user_id not in us.user_settings.keys():
+        reply_md(cfg.msg_error, update)
+        return
+    user = us.User(user_id, chat_id)
+    msg = f'{cfg.msg_setcity}\n{verbiages.get_key_list(bos.bo_cities)}'
+    msg += cfg.msg_setcitybottom
+    user.awaiting_ip      = False
+    user.awaiting_label   = False
+    user.awaiting_channel = False
+    user.awaiting_city    = True
+    user.awaiting_group   = False
+    user.save()
+    update.message.reply_text(msg)
 
 def handle_input(update: Update, context: CallbackContext) -> None:
     try:
@@ -153,6 +177,50 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         user.awaiting_ip      = False
         user.awaiting_label   = False
         update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
+    elif user.awaiting_city:
+        if update.message.text[:15] == '-':
+            update.message.reply_text('Скасовано')
+            user.city          = None
+            user.group         = None
+            user.has_schedule  = False
+            user.awaiting_city = False
+        else:
+            user.city = None
+            entered = str(update.message.text[:15])
+            for city in bos.bo_cities.keys():
+                if entered == city:
+                    user.city = entered
+            if not user.city: 
+                update.message.reply_text('Некоректний ввод')
+                user.awaiting_city = False
+                user.save()
+                return            
+            user.awaiting_city    = False
+            user.awaiting_group   = True
+            update.message.reply_text(f'Вказано {user.city}. {cfg.msg_setgroup}')
+    elif user.awaiting_group:
+        if update.message.text[:1] == '-':
+            update.message.reply_text('Скасовано')
+            user.city           = None
+            user.group          = None
+            user.has_schedule   = False
+            user.awaiting_group = False
+        else:
+            user.group = None
+            entered = str(update.message.text[:1])
+            for group in bos.bo_groups.keys():
+                if entered == str(group):
+                    user.group = group
+            if not user.group: 
+                update.message.reply_text('Некоректний ввод')
+                user.awaiting_group = False
+                user.save()
+                return            
+            user.awaiting_city  = False
+            user.awaiting_group = False
+            user.has_schedule   = True
+            update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
+            _gather_schedules()
     else: return
     user.save()
     #update.message.reply_text(verbiages.get_settings(user_id), reply_markup=settings_menu_markup)
@@ -384,6 +452,13 @@ def _listen(user_id, chat_id):
     if changed and msg and user.to_channel and user.channel_id:
         bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
+def _gather_schedules():
+    # Stop any existing job before starting a new one
+    if 'yasno' in bos.blackout_schedule.keys():
+        schedule.cancel_job(bos.blackout_schedule['yasno'])
+    # Schedule gathering job every 60 min
+    bos.blackout_schedule['yasno'] = schedule.every(60).minutes.do(bos.get_blackout_schedule)
+
 def schedule_pings():
     while True:
         schedule.run_pending()
@@ -417,6 +492,7 @@ dispatcher.add_handler(CommandHandler("listen", listen))
 dispatcher.add_handler(CommandHandler("setip", set_ip))
 dispatcher.add_handler(CommandHandler("setlabel", set_label))
 dispatcher.add_handler(CommandHandler("setchannel", set_channel))
+dispatcher.add_handler(CommandHandler("yasnoschedule", yasno_schedule))
 dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
 dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
 
@@ -428,6 +504,7 @@ dispatcher.add_handler(MessageHandler(Filters.regex('^Зупинка моніт�
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP$'), set_ip))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Графік$'), yasno_schedule))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал \(так/ні\)$'), lambda update, context: post_to_channel(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), lambda update, context: post_to_bot(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), lambda update, context: ping(update, context)))
