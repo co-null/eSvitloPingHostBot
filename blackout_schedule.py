@@ -1,6 +1,7 @@
 import config as cfg
 import requests as urlr
 from datetime import datetime, timedelta
+import time
 import pytz
 
 use_tz = pytz.timezone(cfg.TZ)
@@ -108,6 +109,8 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
 
 def get_windows_analysis(city:str, group_id: str) -> dict:
     now_ts  = datetime.now(use_tz)
-    if len(blackout_schedule) == 0:
-        get_blackout_schedule()
+    for city_key in bo_cities:
+        if bo_cities[city_key] not in blackout_schedule.keys():
+            get_blackout_schedule()
+            time.sleep(5)
     return get_window_by_ts(now_ts, city, group_id)
