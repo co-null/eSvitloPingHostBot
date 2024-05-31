@@ -26,8 +26,11 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     msg = ""
     add = ""
     if user.has_schedule: 
-        windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
-        add = "\n" + verbiages.get_outage_message(status, windows)
+        try:
+            windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
+            add = "\n" + verbiages.get_outage_message(status, windows)
+        except Exception as e:
+            add =  ''
     # if last_state is not set
     if not user.last_state:
         if user.label and user.label != '':
