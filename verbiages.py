@@ -55,8 +55,11 @@ def get_key_list(dictionary:dict) -> str:
 
 
 def get_outage_message(state: str, windows: dict) -> str:
-    current = windows['current']
-    next    = windows['next']
+    try:
+        current = windows['current']
+        next    = windows['next']
+    except Exception as e:
+        return ''
     if state == cfg.ALIVE:
         if current['type'] == 'OUT_OF_SCHEDULE':
             # matched
