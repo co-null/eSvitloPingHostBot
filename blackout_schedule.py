@@ -125,14 +125,18 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
                 break #finished
         # window was previously found, looking for next
         # we were at outage, looking for outage end
-        elif sch_type and sch_type == 'DEFINITE_OUTAGE':
+        elif sch_type and sch_type == 'DEFINITE_OUTAGE' and sch_today[window_id]['type'] != 'DEFINITE_OUTAGE':
+            # next window is the outage end, let's save
+                next = dict(sch_today[window_id])
+                break #finished
+        elif sch_type and sch_type == 'DEFINITE_OUTAGE' and sch_today[window_id]['type'] == 'DEFINITE_OUTAGE':
             # we can't close it if it's the last window
             if window_id == (len(sch_today) - 1):
                 current['end'] = None
-            else:
+            #else:
                 # next window is the outage end, let's save
-                next = dict(sch_today[window_id])
-                break #finished
+             #   next = dict(sch_today[window_id])
+            #s    break #finished
         # else: no need in "else"
 
     # find next window if not found it today
