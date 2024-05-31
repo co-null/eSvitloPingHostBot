@@ -58,16 +58,21 @@ def get_outage_message(state: str, windows: dict) -> str:
     current = windows['current']
     next    = windows['next']
     if state == cfg.ALIVE:
-        if current['type'] != 'DEFINITE_OUTAGE':
+        if current['type'] == 'OUT_OF_SCHEDULE':
             # matched
-            message = f"⏰ Ймовірне відключення з {next['start']} до {next['end']} год."
-        else: 
+            message = f"⏰ Відключення за графіком з {next['start']} до {next['end']} год."
+        elif current['type'] == 'POSSIBLE_OUTAGE':
+            # grey
+            message = f"⏰ Діє сіра зона. Відключення за графіком з {next['start']} до {next['end']} год."
+        else:
             # out of schedule
             message = f"😎 Відключення не відбулося \n⏰ Очікуване відключення з {current['start']} до {current['end']} год."
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
             message = f"⏰ Відключення за графіком до {current['end']} год."
+        elif current['type'] == 'POSSIBLE_OUTAGE':
+            message = f"⏰ Відключення в сірій зоні\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
         else:
             # out of schedule
             message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
