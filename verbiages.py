@@ -50,7 +50,7 @@ def get_settings(user_id: str) -> str:
 def get_key_list(dictionary:dict) -> str:
     msg = ''
     for label in dictionary.keys():
-        msg += label + '\n'
+        msg += "- " + label + '\n'
     return msg
 
 
@@ -63,12 +63,12 @@ def get_outage_message(state: str, windows: dict) -> str:
             message = f"⏰ Ймовірне відключення з {next['start']} до {next['end']} год."
         else: 
             # out of schedule
-            message = f"😎 Відключення не відбулося \nОчікуване відключення з {current['start']} до {current['end']} год."
+            message = f"😎 Відключення не відбулося \n⏰ Очікуване відключення з {current['start']} до {current['end']} год."
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
             message = f"⏰ Відключення за графіком до {current['end']} год."
         else:
             # out of schedule
-            message = f"😒 Відключено поза графіком\nОчікуване відключення з {next['start']} до {next['end']} год."
+            message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
     return message

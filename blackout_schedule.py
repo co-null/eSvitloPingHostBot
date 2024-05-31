@@ -1,12 +1,15 @@
 import config as cfg
 import requests as urlr
+import os
+import json
 from datetime import datetime, timedelta
 import time
 import pytz
 
 use_tz = pytz.timezone(cfg.TZ)
 bo_groups = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4'}
-bo_cities = {'Київ':'kiev', 'Дніпро':'dnipro'}
+bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV'}
+bo_cities = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka'}
 blackout_schedule = {}
 
 def get_blackout_schedule():
@@ -15,6 +18,66 @@ def get_blackout_schedule():
     blackout_schedule = response.json()
     blackout_schedule = blackout_schedule['components'][2]['schedule']
     response.close()
+    adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
+    save_blackout_shedule()
+
+# Save blackout shedule to file
+def save_blackout_shedule():
+    with open("blackout_shedule.json", 'w') as file:
+        json.dump(blackout_schedule, file)
+
+def load_custom_schedule_dtek(file: str):
+    if os.path.exists(file):
+        with open(file, encoding='utf-8', mode='r') as file:
+            return json.load(file)
+
+def adjust_dtek_schedule(file: str):
+    custom_schedule = load_custom_schedule_dtek(file)
+    city_id         = custom_schedule['city_id']
+    city            = {}
+    for group_id in bo_groups.keys():
+        _days = []
+        for day in range(7):
+            _day = []
+            prev_state = None
+            opened = False
+            for hour in range(24):
+                state = custom_schedule['data'][group_id][str(day+1)][str(hour+1)]
+                if state == 'no': t_type = 'DEFINITE_OUTAGE'
+                elif state == 'maybe': t_type = 'POSSIBLE_OUTAGE'
+                else: t_type = 'OUT_OF_SCHEDULE'
+
+                if t_type != 'OUT_OF_SCHEDULE' and not prev_state:
+                    # create first window
+                    _window = {}
+                    _window['start'] = hour
+                    _window['end']   = hour+1
+                    _window['type']  = t_type
+                    prev_state = state
+                    opened = True
+                elif t_type != 'OUT_OF_SCHEDULE' and prev_state != state:
+                    # create next wimdow
+                    if opened: _day.append(dict(_window))
+                    _window = {}
+                    _window['start'] = hour
+                    _window['end']   = hour+1
+                    _window['type']  = t_type
+                    opened = True
+                    prev_state = state
+                elif t_type != 'OUT_OF_SCHEDULE' and prev_state == state:
+                    # update window
+                    _window['end'] = hour+1
+                elif t_type == 'OUT_OF_SCHEDULE' and prev_state != state:
+                    # close previous window
+                    prev_state = state
+                    if opened: _day.append(dict(_window))
+                    opened = False
+
+                # close if this is the last hour
+                if hour == 23 and opened: _day.append(dict(_window))
+            _days.append(_day[:])
+        city[bo_groups[group_id]] = _days[:]
+    blackout_schedule[city_id] = city
 
 def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
     delta     = timedelta(days=1)
@@ -30,7 +93,7 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
     #find current window
     for window_id in range(len(sch_today)):
         # before the window
-        if not sch_type and hour < sch_today[window_id]['start']:
+        if not sch_type and hour < int(sch_today[window_id]['start']):
             # not in window
             sch_type         = 'OUT_OF_SCHEDULE'
             current['type']  = sch_type
@@ -44,7 +107,7 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
         # looking for window
         if not sch_type:
             # in window
-            if hour >= sch_today[window_id]['start'] and hour < sch_today[window_id]['end']:
+            if hour >= int(sch_today[window_id]['start']) and hour < int(sch_today[window_id]['end']):
                 current  = dict(sch_today[window_id])
                 sch_type = sch_today[window_id]['type']
                 # we can't close it if it's the last window

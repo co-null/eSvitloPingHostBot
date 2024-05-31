@@ -178,7 +178,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         user.awaiting_label   = False
         update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
     elif user.awaiting_city:
-        if update.message.text[:15] == '-':
+        if update.message.text[:255] == '-':
             update.message.reply_text('Скасовано')
             user.city          = None
             user.group         = None
@@ -186,7 +186,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             user.awaiting_city = False
         else:
             user.city = None
-            entered = str(update.message.text[:15])
+            entered = str(update.message.text[:255])
             for city in bos.bo_cities.keys():
                 if entered == city:
                     user.city = entered
