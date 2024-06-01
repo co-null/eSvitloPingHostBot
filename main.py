@@ -407,8 +407,9 @@ def _heard(user_id: str) -> None:
     if user.listener:
         msg  = actions.get_state_msg(user, cfg.ALIVE, False)
         msg  = utils.get_text_safe_to_markdown(msg)
-        user.last_state     = cfg.ALIVE
-        user.last_ts        = datetime.now()
+        if user.last_state != cfg.ALIVE:
+            user.last_state     = cfg.ALIVE
+            user.last_ts        = datetime.now()
         user.last_heared_ts = datetime.now()
         user.save_state()
         if msg and user.to_bot: 
