@@ -21,13 +21,13 @@ def check_ip(ip: str) -> bool:
     else: cmd = "ping -c 1 " + ip
     status = subprocess.getstatusoutput(cmd)
     if not status[0] == 0:
-        for i in range(1, 4):
+        for i in range(1, 2):
             time.sleep(1)
             status = subprocess.getstatusoutput(cmd)
             if status[0]==0: return True
     if not status[0] == 0:
         time.sleep(5)
-        for i in range(1, 4):
+        for i in range(1, 2):
             time.sleep(1)
             status = subprocess.getstatusoutput(cmd)
             if status[0]==0: return True
