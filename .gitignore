@@ -3,3 +3,4 @@ user_settings.json
 test.py
 flask_example.py
 errors.log
+__pycache__/

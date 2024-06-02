@@ -272,7 +272,7 @@ def _start_listen(user: us.User):
     if user.user_id in us.listeners.keys():
         schedule.cancel_job(us.listeners[user.user_id])
     # Schedule the listen job every 5 min
-    us.listeners[user.user_id] = schedule.every(cfg.SHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
+    us.listeners[user.user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
     user.listener = True
     user.save()
     # Initial check immediately
@@ -294,7 +294,8 @@ def listen(update: Update, context: CallbackContext) -> None:
     if not user.listener:
         # If need to turn on
         _start_listen(user)
-        msg = f'Тепер бот слухатиме {user.label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.'
+        msg = cfg.msg_listeneron
+        msg += f'Тепер бот слухатиме {user.label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.\n'
     else:
         # If need to turn off
         _stop_listen(user)
