@@ -433,17 +433,18 @@ def _listen(user_id, chat_id):
         # Do not spam if never worked
         if not user.last_state or not user.last_ts or not user.last_heared_ts: 
             return
-        delta = datetime.now() - max(user.last_heared_ts, user.last_ts)
-        # If >300 sec (5 mins) and was turned on - consider blackout
+        delta   = datetime.now() - max(user.last_heared_ts, user.last_ts)
         seconds = 86400*delta.days + delta.seconds
-        if seconds > 300 and user.last_state == cfg.ALIVE:
+        status  = user.last_state # for start to ensure it not Null
+        # If >300 sec (5 mins) and was turned on - consider blackout
+        if seconds >= 300 and user.last_state == cfg.ALIVE:
             status = cfg.OFF
-        elif user.last_state == cfg.ALIVE:
+        elif seconds < 300 and user.last_state == cfg.ALIVE:
             # still enabled
             status = cfg.ALIVE
-        elif seconds <= 300 and user.last_state == cfg.OFF:
-            # turned on, maybe missed
-            status = cfg.ALIVE
+        elif seconds < 300 and user.last_state == cfg.OFF:
+            # already turned off
+            status = cfg.OFF
         else:    
             # still turned off
             status = cfg.OFF
