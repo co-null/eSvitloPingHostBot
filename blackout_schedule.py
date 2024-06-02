@@ -14,16 +14,20 @@ blackout_schedule = {}
 
 def get_blackout_schedule():
     global blackout_schedule
-    response = urlr.get(cfg.YASNO_URL)
-    blackout_schedule = response.json()
-    blackout_schedule = blackout_schedule['components'][2]['schedule']
-    response.close()
-    adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
-    save_blackout_shedule()
+    try:
+        response = urlr.get(cfg.YASNO_URL)
+        blackout_schedule = response.json()
+        blackout_schedule = blackout_schedule['components'][2]['schedule']
+        response.close()
+        adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
+        save_blackout_shedule()
+    except Exception as e:
+        print(f'Exception happened in get_blackout_schedule(): {e} ')
+
 
 # Save blackout shedule to file
 def save_blackout_shedule():
-    with open("blackout_shedule.json", 'w') as file:
+    with open(cfg.SCHEDULE_FILE, 'w') as file:
         json.dump(blackout_schedule, file)
 
 def load_custom_schedule_dtek(file: str):
