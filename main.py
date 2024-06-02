@@ -435,7 +435,6 @@ def _listen(user_id, chat_id):
             return
         delta   = datetime.now() - max(user.last_heared_ts, user.last_ts)
         seconds = 86400*delta.days + delta.seconds
-        status  = user.last_state # for start to ensure it not Null
         # If >300 sec (5 mins) and was turned on - consider blackout
         if seconds >= 300 and user.last_state == cfg.ALIVE:
             status = cfg.OFF
@@ -447,7 +446,7 @@ def _listen(user_id, chat_id):
             status = cfg.OFF
         else:    
             # still turned off
-            status = cfg.OFF
+            status = user.last_state
         if status==user.last_state: changed = False
         else: changed = True
         if changed: 
