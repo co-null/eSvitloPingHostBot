@@ -13,21 +13,17 @@ import time
 import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
-#import logging
-#logger = logging.getLogger(__name__)
-#logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', filename=cfg.LOG_FILE, encoding='utf-8', level=logging.ERROR)
+import pytz
 
 PARSE_MODE = constants.PARSEMODE_MARKDOWN_V2
 # Initialize Flask app
 app = Flask(__name__)
 
-# Initialize the bot
+# Telegram bot initialization
 bot_request = TRequest(con_pool_size=8)
 bot         = Bot(token=bot_secrets.BOT_TOKEN, request=bot_request)
-
-# Telegram bot initialization
-updater    = Updater(bot=bot, use_context=True)
-dispatcher = updater.dispatcher
+updater     = Updater(bot=bot, use_context=True)
+dispatcher  = updater.dispatcher
 
 # Define the main menu keyboard
 main_menu_keyboard = [[KeyboardButton('Отримати статус негайно')], 
@@ -43,7 +39,8 @@ settings_menu_keyboard = [[KeyboardButton('Вказати IP'),
                           KeyboardButton('-> в канал (так/ні)')], 
                           [KeyboardButton('Пінгувати (так/ні)'),
                            KeyboardButton('Слухати (так/ні)'),
-                           KeyboardButton('Графік')],
+                           KeyboardButton('Графік'), 
+                           KeyboardButton('Нагадати')],
                           [KeyboardButton('Головне меню')]]
 
 main_menu_markup     = ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True)
@@ -68,8 +65,10 @@ def start(update: Update, context: CallbackContext) -> None:
             us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
         if user.has_schedule:
             _gather_schedules()
+            _notification_schedules()
         reply_md(cfg.msg_comeback, update, reply_markup=main_menu_markup)
-    bos.get_blackout_schedule()    
+    bos.get_blackout_schedule()
+    bos.set_notifications()
 
 def settings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -93,11 +92,7 @@ def set_ip(update: Update, context: CallbackContext) -> None:
         reply_md(cfg.msg_error, update)
         return
     user = us.User(user_id, chat_id)
-    user.awaiting_ip      = True
-    user.awaiting_label   = False
-    user.awaiting_channel = False
-    user.awaiting_city    = False
-    user.awaiting_group   = False
+    user.toggle_awaiting_ip()
     user.save()
     reply_md(cfg.msg_setip, update, reply_markup=settings_menu_markup)
 
@@ -106,12 +101,9 @@ def set_label(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        return
     user = us.User(user_id, chat_id)
-    user.awaiting_ip      = False
-    user.awaiting_label   = True
-    user.awaiting_channel = False
-    user.awaiting_city    = False
-    user.awaiting_group   = False
+    user.toggle_awaiting_label()
     user.save()
     reply_md(cfg.msg_setlabel, update, reply_markup=settings_menu_markup)
 
@@ -120,10 +112,9 @@ def set_channel(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        return
     user = us.User(user_id, chat_id)
-    user.awaiting_ip      = False
-    user.awaiting_label   = False
-    user.awaiting_channel = True
+    user.toggle_awaiting_channel()
     user.save()
     reply_md(cfg.msg_setchannel, update, reply_markup=settings_menu_markup)
 
@@ -136,13 +127,26 @@ def yasno_schedule(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     msg = f'{cfg.msg_setcity}\n{verbiages.get_key_list(bos.bo_cities)}'
     msg += cfg.msg_setcitybottom
-    user.awaiting_ip      = False
-    user.awaiting_label   = False
-    user.awaiting_channel = False
-    user.awaiting_city    = True
-    user.awaiting_group   = False
+    user.toggle_awaiting_city()
     user.save()
     update.message.reply_text(msg)
+
+def reminder(update: Update, context: CallbackContext) -> None:
+    user_id = str(update.message.from_user.id)
+    chat_id = update.message.chat_id
+    if user_id not in us.user_settings.keys():
+        reply_md(cfg.msg_error, update)
+        return
+    user = us.User(user_id, chat_id)
+    if not user.to_remind and not user.has_schedule:
+        reply_md(cfg.msg_reminder_no_schedule, update)
+    elif not user.to_remind and user.has_schedule:
+        user.to_remind = True
+        reply_md(cfg.msg_reminder_turnon, update)
+    elif user.to_remind and user.has_schedule:
+        user.to_remind = False
+        reply_md(cfg.msg_reminder_off, update)
+    user.save()
 
 def handle_input(update: Update, context: CallbackContext) -> None:
     try:
@@ -157,35 +161,31 @@ def handle_input(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     if user.awaiting_ip:
         user.ip_address       = update.message.text[:15]
-        user.awaiting_ip      = False
+        user.toggle_nowait()
         user.awaiting_channel = False
         if not user.label or user.label == '':
-            user.awaiting_label = True
+            user.toggle_awaiting_label()
             update.message.reply_text(f'Вказано IP адресу {user.ip_address}. Тепер вкажіть, будь-ласка, назву:')
         else:
             reply_md(f'Вказано IP адресу {user.ip_address}', update)
     elif user.awaiting_label:
         user.label = update.message.text[:255]
-        user.awaiting_ip      = False
-        user.awaiting_label   = False
-        user.awaiting_channel = False
+        user.toggle_nowait()
         update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг (пінг)')
     elif user.awaiting_channel:
         channel_id = update.message.text[:255]
         if channel_id.startswith('https://t.me/'): channel_id.replace('https://t.me/', '')
         if not channel_id.startswith('@'): channel_id = '@' + channel_id
         user.channel_id = channel_id
-        user.awaiting_channel = False
-        user.awaiting_ip      = False
-        user.awaiting_label   = False
+        user.toggle_nowait()
         update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
     elif user.awaiting_city:
         if update.message.text[:255] == '-':
             update.message.reply_text('Скасовано')
-            user.city          = None
-            user.group         = None
-            user.has_schedule  = False
-            user.awaiting_city = False
+            user.city         = None
+            user.group        = None
+            user.has_schedule = False
+            user.toggle_nowait()
         else:
             user.city = None
             entered = str(update.message.text[:255])
@@ -194,19 +194,18 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                     user.city = entered
             if not user.city: 
                 update.message.reply_text('Некоректний ввод')
-                user.awaiting_city = False
+                user.toggle_nowait()
                 user.save()
                 return            
-            user.awaiting_city    = False
-            user.awaiting_group   = True
+            user.toggle_awaiting_group()
             update.message.reply_text(f'Вказано {user.city}. {cfg.msg_setgroup}')
     elif user.awaiting_group:
         if update.message.text[:1] == '-':
             update.message.reply_text('Скасовано')
-            user.city           = None
-            user.group          = None
-            user.has_schedule   = False
-            user.awaiting_group = False
+            user.city         = None
+            user.group        = None
+            user.has_schedule = False
+            user.toggle_nowait()
         else:
             user.group = None
             entered = str(update.message.text[:1])
@@ -215,12 +214,11 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                     user.group = group
             if not user.group: 
                 update.message.reply_text('Некоректний ввод')
-                user.awaiting_group = False
+                user.toggle_nowait()
                 user.save()
                 return            
-            user.awaiting_city  = False
-            user.awaiting_group = False
-            user.has_schedule   = True
+            user.toggle_nowait()
+            user.has_schedule = True
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
     else: return
@@ -415,8 +413,8 @@ def _heard(user_id: str) -> None:
         msg  = actions.get_state_msg(user, cfg.ALIVE, False)
         msg  = utils.get_text_safe_to_markdown(msg)
         if user.last_state != cfg.ALIVE:
-            user.last_state     = cfg.ALIVE
-            user.last_ts        = datetime.now()
+            user.last_state = cfg.ALIVE
+            user.last_ts    = datetime.now()
         user.last_heared_ts = datetime.now()
         user.save_state()
         if msg and user.to_bot: 
@@ -472,13 +470,66 @@ def _listen(user_id, chat_id):
     except Exception as e:
         print(f"Exception in _listen({user_id}, {chat_id}): {e}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
-    
+
+def _send_notifications():
+    #print("Start send notifications job")
+    try:
+        # here all timestamp are in Kyiv TZ
+        use_tz = pytz.timezone(cfg.TZ)
+        now_ts0 = datetime.now(use_tz)
+        # make tz-naive
+        now_ts = datetime.strptime((now_ts0.strftime('%Y-%m-%d %H:%M:%S')), '%Y-%m-%d %H:%M:%S')
+        for user_id in us.user_settings.keys():
+            chat_id = us.user_settings[user_id]['chat_id']
+            user    = us.User(user_id, chat_id)
+            if user.has_schedule and user.to_remind and user.next_notification_ts and user.next_outage_ts:
+                if user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state == cfg.ALIVE:
+                    # will send
+                    msg = verbiages.get_notification_message(user.next_outage_ts)
+                    if msg and user.to_bot: 
+                        try:
+                            bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+                        except Exception as e:
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                    if msg and user.to_channel and user.channel_id:
+                        try:
+                            bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+                        except Exception as e:
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                    # update next_notification_ts so we'll not send again
+                    user.next_notification_ts = user.next_outage_ts
+                    user.save_state()
+                elif user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state != cfg.ALIVE:
+                    # already off
+                    user.next_notification_ts = None
+                    user.next_outage_ts       = None
+                    user.save_state()
+                elif user.next_outage_ts < now_ts:
+                    # outdated
+                    user.next_notification_ts = None
+                    user.next_outage_ts       = None
+                    user.save_state()
+    except Exception as e:
+        print(f"Exception in _send_notifications(): {e}")
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications(): {e}", parse_mode=PARSE_MODE) 
+
 def _gather_schedules():
     # Stop any existing job before starting a new one
-    if 'yasno' in bos.blackout_schedule.keys():
-        schedule.cancel_job(bos.blackout_schedule['yasno'])
+    if 'yasno' in bos.shedulers.keys():
+        schedule.cancel_job(bos.shedulers['yasno'])
     # Schedule gathering job every 60 min
-    bos.blackout_schedule['yasno'] = schedule.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
+    bos.shedulers['yasno'] = schedule.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
+
+def _notification_schedules():
+    # Stop any existing job before starting a new one
+    if 'set_notification' in bos.shedulers.keys():
+        schedule.cancel_job(bos.shedulers['set_notification'])
+    # Schedule set_notification job every 30 min
+    bos.shedulers['set_notification'] = schedule.every(cfg.SCHEDULE_SET_NOTIFICATION).minutes.do(bos.set_notifications)
+    if 'send_notification' in bos.shedulers.keys():
+        schedule.cancel_job(bos.shedulers['send_notification'])
+    # Schedule send_notification job every min
+    bos.shedulers['send_notification'] = schedule.every(cfg.SCHEDULE_SEND_NOTIFICATION).minutes.do(_send_notifications)
 
 def schedule_pings():
     while True:
@@ -498,9 +549,12 @@ for user_id in us.user_settings.keys():
             if user_id in us.listeners.keys():
                 schedule.cancel_job(us.listeners[user_id])
             us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
-        _gather_schedules()
     except Exception as e:
         continue
+_gather_schedules()
+_notification_schedules()
+bos.get_blackout_schedule()
+bos.set_notifications()
 
 # Register command handlers
 dispatcher.add_handler(CommandHandler("start", start))
@@ -515,6 +569,7 @@ dispatcher.add_handler(CommandHandler("setip", set_ip))
 dispatcher.add_handler(CommandHandler("setlabel", set_label))
 dispatcher.add_handler(CommandHandler("setchannel", set_channel))
 dispatcher.add_handler(CommandHandler("yasnoschedule", yasno_schedule))
+dispatcher.add_handler(CommandHandler("reminder", reminder))
 dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
 dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
 
@@ -527,6 +582,7 @@ dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP$'), set_
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Графік$'), yasno_schedule))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Нагадати$'), reminder))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал \(так/ні\)$'), lambda update, context: post_to_channel(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), lambda update, context: post_to_bot(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), lambda update, context: ping(update, context)))
@@ -557,5 +613,4 @@ if __name__ == '__main__':
     #updater.idle()
 
     # Run the Flask app
-    app.run(host='0.0.0.0', port=5000)   
-    
+    app.run(host='0.0.0.0', port=5000)    

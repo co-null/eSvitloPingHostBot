@@ -24,9 +24,12 @@ class User:
             self.has_schedule             = False
             self.city                     = None
             self.group                    = None
+            self.to_remind                = False
             self.last_state: str          = None
             self.last_ts: datetime        = None
             self.last_heared_ts: datetime = None
+            self.next_notification_ts: datetime = None
+            self.next_outage_ts: datetime = None
             self.new                      = True
         else:
             _user  = user_settings[user_id]
@@ -45,7 +48,8 @@ class User:
             self.awaiting_group: bool     = utils.get_key_safe(_user, 'awaiting_group', False)
             self.has_schedule: bool       = utils.get_key_safe(_user, 'has_schedule', False)
             self.city: str                = utils.get_key_safe(_user, 'city', None)
-            self.group: str              = utils.get_key_safe(_user, 'group', None)
+            self.group: str               = utils.get_key_safe(_user, 'group', None)
+            self.to_remind: bool          = utils.get_key_safe(_user, 'to_remind', False)
             self.last_state: str          = utils.get_key_safe(_state, 'last_state', None)
 
             date_str = utils.get_key_safe(_state, 'last_ts', None)
@@ -56,6 +60,14 @@ class User:
             if date_str:
                 self.last_heared_ts = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
             else: self.last_heared_ts = None
+            date_str = utils.get_key_safe(_state, 'next_notification_ts', None)
+            if date_str:
+                self.next_notification_ts = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            else: self.next_notification_ts = None
+            date_str = utils.get_key_safe(_state, 'next_outage_ts', None)
+            if date_str:
+                self.next_outage_ts = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            else: self.next_outage_ts = None
             self.new = False
         self.save()
 
@@ -86,14 +98,63 @@ class User:
         _user['has_schedule']     = self.has_schedule
         _user['city']             = self.city
         _user['group']            = self.group
+        _user['to_remind']        = self.to_remind
         _state = utils.get_key_safe(user_states, self.user_id, {})
-        _state['last_state']     = self.last_state
-        if self.last_ts:
+        _state['last_state'] = self.last_state
+        if self.last_ts: 
             _state['last_ts'] = self.last_ts.strftime('%Y-%m-%d %H:%M:%S')
-        if self.last_heared_ts:
+        if self.last_heared_ts: 
             _state['last_heared_ts'] = self.last_heared_ts.strftime('%Y-%m-%d %H:%M:%S')
+        if self.next_notification_ts: 
+            _state['next_notification_ts'] = self.next_notification_ts.strftime('%Y-%m-%d %H:%M:%S')
+        else: _state['next_notification_ts'] = None
+        if self.next_outage_ts:
+            _state['next_outage_ts'] = self.next_outage_ts.strftime('%Y-%m-%d %H:%M:%S')
+        else: _state['next_outage_ts'] = None
         user_settings[self.user_id] = _user
         user_states[self.user_id]   = _state
+
+    def toggle_awaiting_ip(self):
+        self.awaiting_ip      = True
+        self.awaiting_label   = False
+        self.awaiting_channel = False
+        self.awaiting_city    = False
+        self.awaiting_group   = False
+
+    def toggle_awaiting_label(self):
+        self.awaiting_ip      = False
+        self.awaiting_label   = True
+        self.awaiting_channel = False
+        self.awaiting_city    = False
+        self.awaiting_group   = False
+
+    def toggle_awaiting_channel(self):
+        self.awaiting_ip      = False
+        self.awaiting_label   = False
+        self.awaiting_channel = True
+        self.awaiting_city    = False
+        self.awaiting_group   = False
+
+    def toggle_awaiting_city(self):
+        self.awaiting_ip      = False
+        self.awaiting_label   = False
+        self.awaiting_channel = False
+        self.awaiting_city    = True
+        self.awaiting_group   = False
+
+    def toggle_awaiting_group(self):
+        self.awaiting_ip      = False
+        self.awaiting_label   = False
+        self.awaiting_channel = False
+        self.awaiting_city    = False
+        self.awaiting_group   = True
+
+    def toggle_nowait(self):
+        self.awaiting_ip      = False
+        self.awaiting_label   = False
+        self.awaiting_channel = False
+        self.awaiting_city    = False
+        self.awaiting_group   = False
 
 # Load user settings from file
 def load_user_settings():

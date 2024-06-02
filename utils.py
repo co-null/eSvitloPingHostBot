@@ -25,12 +25,6 @@ def check_ip(ip: str) -> bool:
             time.sleep(1)
             status = subprocess.getstatusoutput(cmd)
             if status[0]==0: return True
-    if not status[0] == 0:
-        time.sleep(5)
-        for i in range(1, 2):
-            time.sleep(1)
-            status = subprocess.getstatusoutput(cmd)
-            if status[0]==0: return True
     return status[0]==0
 
 def get_ip_status(ip: str) -> str:

@@ -1,4 +1,5 @@
 import config as cfg
+import user_settings as us
 import requests as urlr
 import os
 import json
@@ -11,6 +12,7 @@ bo_groups = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4'}
 bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV'}
 bo_cities = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka'}
 blackout_schedule = {}
+shedulers = {}
 
 def get_blackout_schedule():
     global blackout_schedule
@@ -185,3 +187,34 @@ def get_windows_analysis(city:str, group_id: str) -> dict:
             get_blackout_schedule()
             time.sleep(5)
     return get_window_by_ts(now_ts, city, group_id)
+
+def get_next_outage(city:str, group_id: str) -> datetime:
+    now_ts  = datetime.now(use_tz)
+    windows = get_window_by_ts(now_ts, city, group_id)
+    if windows['next']['type'] == 'DEFINITE_OUTAGE':
+        return now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
+    else: return None
+
+def get_notification_ts(next_outage: datetime) -> datetime:
+    delta = timedelta(minutes=16)
+    if next_outage:
+        return next_outage-delta
+    else: return None
+
+def set_notifications():
+    #print("Start set notifications job")
+    for user_id in us.user_settings.keys():
+        chat_id = us.user_settings[user_id]['chat_id']
+        user    = us.User(user_id, chat_id)
+        try:
+            # has schedule and notification not set
+            if user.has_schedule and user.to_remind and not user.next_notification_ts:
+                delta = datetime.now() - user.last_ts
+                if delta.days > 0: continue
+                next_outage = get_next_outage(bo_cities[user.city], bo_groups[user.group])
+                if next_outage:
+                    user.next_outage_ts       = next_outage
+                    user.next_notification_ts = get_notification_ts(next_outage)
+                    user.save_state()
+        except Exception as e:
+            print(f"Exception in blackout_schedule.set_notifications(): {e}")
