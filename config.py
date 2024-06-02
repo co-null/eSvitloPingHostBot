@@ -1,13 +1,15 @@
 SETTINGS_FILE = 'user_settings.json'
 STATES_FILE = 'user_states.json'
+SCHEDULE_FILE='blackout_schedule.json'
 LOG_FILE = 'errors.log'
 TZ = 'Europe/Kiev'
 LISTENER_URL = 'http://35.193.236.121:5000/send?chat_id='
 LOCAL_URL = 'http://127.0.0.1:5000/send?chat_id='
 ALIVE='alive'
 OFF='not reachable'
-SHEDULE_PING=1
-SHEDULE_LISTEN=5
+SCHEDULE_PING=1
+SCHEDULE_LISTEN=5
+SCHEDULE_GATHER_SCHEDULE=5
 YASNO_URL = 'https://api.yasno.com.ua/api/v1/pages/home/schedule-turn-off-electricity'
 isPostOK="F"
 msg_greeting="Вітаю! Налаштуйте бот для перевірки доступності IP адреси кожну хвилину (для старту моніторингу адреса має бути доступна), або ввімкніть режим прослуховування. Є можливість публікації повідомлень у канал (для цього попередньо додайте бот в канал)"

@@ -4,3 +4,4 @@ test.py
 flask_example.py
 errors.log
 bot_secrets.py
+__pycache__/

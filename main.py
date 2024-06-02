@@ -63,11 +63,13 @@ def start(update: Update, context: CallbackContext) -> None:
     else:
         # Recreate the jobs if saved previously
         if user.ping_job:
-            us.user_jobs[user_id] = schedule.every(cfg.SHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+            us.user_jobs[user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if user.listener:
-            us.listeners[user_id] = schedule.every(cfg.SHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+            us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+        if user.has_schedule:
+            _gather_schedules()
         reply_md(cfg.msg_comeback, update, reply_markup=main_menu_markup)
-    bos.get_blackout_schedule()
+    bos.get_blackout_schedule()    
 
 def settings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -230,7 +232,7 @@ def _start_ping(user: us.User) -> None:
     if user.user_id in us.user_jobs.keys():
         schedule.cancel_job(us.user_jobs[user.user_id])
     # Schedule the ping job every min
-    us.user_jobs[user.user_id] = schedule.every(cfg.SHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+    us.user_jobs[user.user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
     user.ping_job = 'scheduled'
     user.save()
     # Initial ping immediately
@@ -270,7 +272,7 @@ def _start_listen(user: us.User):
     if user.user_id in us.listeners.keys():
         schedule.cancel_job(us.listeners[user.user_id])
     # Schedule the listen job every 5 min
-    us.listeners[user.user_id] = schedule.every(cfg.SHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
+    us.listeners[user.user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
     user.listener = True
     user.save()
     # Initial check immediately
@@ -292,7 +294,8 @@ def listen(update: Update, context: CallbackContext) -> None:
     if not user.listener:
         # If need to turn on
         _start_listen(user)
-        msg = f'Тепер бот слухатиме {user.label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.'
+        msg = cfg.msg_listeneron
+        msg += f'Тепер бот слухатиме {user.label} і повідомлятиме про зміну статусу, якщо повідомлення припиняться більше, ніж на 5 хв.\n'
     else:
         # If need to turn off
         _stop_listen(user)
@@ -366,21 +369,25 @@ def _ping(user_id, chat_id):
     if user_id not in us.user_settings.keys():
         return
     user   = us.User(user_id, chat_id)
-    result = actions._ping_ip(user, False)
-    msg    = utils.get_text_safe_to_markdown(result.message)
-    if msg and user.to_bot: 
-        try:
-            bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
-        except Exception as e:
-            #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
-            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
-    if msg and user.to_channel and user.channel_id:
-        try:
-            bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
-        except Exception as e:
-            #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
-            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
-    user.save_state()
+    try:
+        result = actions._ping_ip(user, False)
+        msg    = utils.get_text_safe_to_markdown(result.message)
+        if msg and user.to_bot: 
+            try:
+                bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+            except Exception as e:
+                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+        if msg and user.to_channel and user.channel_id:
+            try:
+                bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+            except Exception as e:
+                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+        user.save_state()
+    except Exception as e:
+        print(f"Exception in _ping({user_id}, {chat_id}): {e}")
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
 
 def ping_now(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -418,48 +425,60 @@ def _heard(user_id: str) -> None:
             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def _listen(user_id, chat_id):
-    if user_id not in us.user_settings.keys():
-        return
-    user = us.User(user_id, chat_id)
-    if not user.listener: 
-        # was turned off somehow
-        return
-    # Do not spam if never worked
-    if not user.last_state or not user.last_ts or not user.last_heared_ts: 
-        return
-    delta = datetime.now() - (user.last_heared_ts, user.last_ts)
-    # If >300 sec (5 mins) and was turned on - consider blackout
-    seconds = 86400*delta.days + delta.seconds
-    if seconds > 300 and user.last_state == cfg.ALIVE:
-        status = cfg.OFF
-    elif user.last_state == cfg.ALIVE:
-        # still enabled
-        status = cfg.ALIVE
-    elif seconds <= 300 and user.last_state == cfg.OFF:
-        # turned on, maybe missed
-        status = cfg.ALIVE
-    else:    
-        # still turned off
-        status = cfg.OFF
-    if status==user.last_state: changed = False
-    else: changed = True
-    if changed: 
-        user.last_ts = max(user.last_heared_ts, user.last_ts)
-        msg = actions.get_state_msg(user, status, False)
-        msg = utils.get_text_safe_to_markdown(msg)
-        user.last_state = status
-    user.save_state()
-    if changed and msg and user.to_bot: 
-        bot.send_message(chat_id=chat_id, text=msg, parse_mode=PARSE_MODE)
-    if changed and msg and user.to_channel and user.channel_id:
-        bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
-
+    try:
+        if user_id not in us.user_settings.keys():
+            return
+        user = us.User(user_id, chat_id)
+        if not user.listener: 
+            # was turned off somehow
+            return
+        # Do not spam if never worked
+        if not user.last_state or not user.last_ts or not user.last_heared_ts: 
+            return
+        delta = datetime.now() - max(user.last_heared_ts, user.last_ts)
+        # If >300 sec (5 mins) and was turned on - consider blackout
+        seconds = 86400*delta.days + delta.seconds
+        if seconds > 300 and user.last_state == cfg.ALIVE:
+            status = cfg.OFF
+        elif user.last_state == cfg.ALIVE:
+            # still enabled
+            status = cfg.ALIVE
+        elif seconds <= 300 and user.last_state == cfg.OFF:
+            # turned on, maybe missed
+            status = cfg.ALIVE
+        else:    
+            # still turned off
+            status = cfg.OFF
+        if status==user.last_state: changed = False
+        else: changed = True
+        if changed: 
+            user.last_ts = max(user.last_heared_ts, user.last_ts)
+            msg = actions.get_state_msg(user, status, False)
+            msg = utils.get_text_safe_to_markdown(msg)
+            user.last_state = status
+        user.save_state()
+        if changed and msg and user.to_bot: 
+            try:
+                bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+            except Exception as e:
+                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+        if changed and msg and user.to_channel and user.channel_id:
+            try:
+                bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+            except Exception as e:
+                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+    except Exception as e:
+        print(f"Exception in _listen({user_id}, {chat_id}): {e}")
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
+    
 def _gather_schedules():
     # Stop any existing job before starting a new one
     if 'yasno' in bos.blackout_schedule.keys():
         schedule.cancel_job(bos.blackout_schedule['yasno'])
     # Schedule gathering job every 60 min
-    bos.blackout_schedule['yasno'] = schedule.every(60).minutes.do(bos.get_blackout_schedule)
+    bos.blackout_schedule['yasno'] = schedule.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
 
 def schedule_pings():
     while True:
@@ -474,11 +493,12 @@ for user_id in us.user_settings.keys():
         if user.ping_job:
             if user_id in us.user_jobs.keys():
                 schedule.cancel_job(us.user_jobs[user_id])
-            us.user_jobs[user_id] = schedule.every(cfg.SHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+            us.user_jobs[user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if user.listener:
             if user_id in us.listeners.keys():
                 schedule.cancel_job(us.listeners[user_id])
-            us.listeners[user_id] = schedule.every(cfg.SHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+            us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+        _gather_schedules()
     except Exception as e:
         continue
 
