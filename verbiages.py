@@ -44,7 +44,12 @@ def get_settings(user_id: str) -> str:
     else: msg += cfg.msg_botoff
     if user.to_channel: msg += cfg.msg_channelon
     else: msg += cfg.msg_channeloff
-    if user.has_schedule: msg += f'Налаштовано графік для {user.city}: Група {user.group}'
+    if user.has_schedule: 
+        msg += f'Налаштовано графік для {user.city}: Група {user.group}'+ "\n"
+        if user.to_remind:
+            msg += cfg.msg_reminder_on
+        else: 
+            msg += cfg.msg_reminder_off
     return msg
 
 def get_key_list(dictionary:dict) -> str:
@@ -52,7 +57,6 @@ def get_key_list(dictionary:dict) -> str:
     for label in dictionary.keys():
         msg += "- " + label + '\n'
     return msg
-
 
 def get_outage_message(state: str, windows: dict) -> str:
     try:
@@ -69,7 +73,7 @@ def get_outage_message(state: str, windows: dict) -> str:
             message = f"⏰ Діє сіра зона. Відключення за графіком з {next['start']} до {next['end']} год."
         else:
             # out of schedule
-            message = f"😎 Відключення не відбулося \n⏰ Очікуване відключення з {current['start']} до {current['end']} год."
+            message = f"⏰ Очікуване відключення з {current['start']} до {current['end']} год."
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
@@ -80,3 +84,8 @@ def get_outage_message(state: str, windows: dict) -> str:
             # out of schedule
             message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
     return message
+
+def get_notification_message(blackout: datetime, severity = 'DEFINITE_OUTAGE'):
+    blackout_ts_short = blackout.strftime('%H:%M')
+    if severity == 'DEFINITE_OUTAGE':
+        return f"⏰ Увага, очікується відключення за графіком з {blackout_ts_short}"
