@@ -110,6 +110,13 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
                 #break
             else:
                 current['end'] = None # will look for outage start
+        # after the last window
+        elif not sch_type and hour >= int(sch_today[window_id]['end']):
+            # not in window
+            sch_type         = 'OUT_OF_SCHEDULE'
+            current['type']  = sch_type
+            current['start'] = int(sch_today[window_id]['end'])
+            current['end']   = None # will look for outage start
         # looking for window
         if not sch_type:
             # in window
@@ -193,6 +200,15 @@ def get_next_outage(city:str, group_id: str) -> datetime:
     windows = get_window_by_ts(now_ts, city, group_id)
     if windows['next']['type'] == 'DEFINITE_OUTAGE':
         return now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
+    else: return None
+
+def get_next_outage_window(user: us.User) -> datetime:
+    now_ts  = datetime.now(use_tz)
+    windows = get_window_by_ts(now_ts, bo_cities[user.city], bo_groups[user.group])
+    if windows['next']['type'] == 'DEFINITE_OUTAGE':
+        start = now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
+        end   = now_ts.replace(hour=windows['next']['end'], minute=0, second=0)
+        return {'start': start, 'end': end}
     else: return None
 
 def get_notification_ts(next_outage: datetime) -> datetime:
