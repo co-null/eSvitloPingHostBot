@@ -9,7 +9,7 @@ import pytz
 use_tz = pytz.timezone(cfg.TZ)
 
 def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
-    if user.ip_address:
+    if user.ip_address and user.ping_job == 'scheduled':
         status = utils.get_ip_status(user.ip_address)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True
@@ -30,7 +30,7 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
             windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
             add = "\n" + verbiages.get_outage_message(status, windows)
         except Exception as e:
-            add =  ''
+            print(f'Exception in get_state_msg(): {e}, status={status}, windows={windows}')
     # if last_state is not set
     if not user.last_state:
         if user.label and user.label != '':

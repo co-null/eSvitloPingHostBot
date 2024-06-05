@@ -67,25 +67,30 @@ def get_outage_message(state: str, windows: dict) -> str:
     if state == cfg.ALIVE:
         if current['type'] == 'OUT_OF_SCHEDULE':
             # matched
-            message = f"⏰ Відключення за графіком з {next['start']} до {next['end']} год."
+            message = f"⏰ Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
         elif current['type'] == 'POSSIBLE_OUTAGE':
             # grey
-            message = f"⏰ Діє сіра зона. Відключення за графіком з {next['start']} до {next['end']} год."
+            message = f"⏰ Діє сіра зона. Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
-            message = f"⏰ Очікуване відключення з {current['start']} до {current['end']} год."
+            message = f"⏰ Очікуване відключення з *{current['start']:02}:00* до *{current['end']:02}:00*"
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
-            message = f"⏰ Відключення за графіком до {current['end']} год."
+            message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год."
         elif current['type'] == 'POSSIBLE_OUTAGE':
-            message = f"⏰ Відключення в сірій зоні\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
+            message = f"⏰ Відключення в сірій зоні\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
-            message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з {next['start']} до {next['end']} год."
+            message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
     return message
 
 def get_notification_message(blackout: datetime, severity = 'DEFINITE_OUTAGE'):
     blackout_ts_short = blackout.strftime('%H:%M')
     if severity == 'DEFINITE_OUTAGE':
-        return f"⏰ Увага, очікується відключення за графіком з {blackout_ts_short}"
+        return f"⏰ Увага, очікується відключення за графіком з *{blackout_ts_short}*"
+    
+def get_notification_message_long(window: dict):
+    start_ts_short = window['start'].strftime('%H:%M')
+    end_ts_short   = window['end'].strftime('%H:%M')
+    return f"⏰ Увага, очікується відключення за графіком з *{start_ts_short}* до *{end_ts_short}*"

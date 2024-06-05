@@ -1,19 +1,35 @@
-import bot_secrets
-import config as cfg
-import user_settings as us
-import utils
-import verbiages
-import actions
-import blackout_schedule as bos
+import bot_secrets, config as cfg, user_settings as us, utils, verbiages, actions, blackout_schedule as bos
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, constants
 from telegram.utils.request import Request as TRequest
+import logging
 import schedule
 import time
 import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
 import pytz
+
+# Create a logger
+logger = logging.getLogger('mylogger')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+fh = logging.FileHandler('errors.log')
+fh.setLevel(logging.DEBUG)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 PARSE_MODE = constants.PARSEMODE_MARKDOWN_V2
 # Initialize Flask app
@@ -485,7 +501,7 @@ def _send_notifications():
             if user.has_schedule and user.to_remind and user.next_notification_ts and user.next_outage_ts:
                 if user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state == cfg.ALIVE:
                     # will send
-                    msg = verbiages.get_notification_message(user.next_outage_ts)
+                    msg = verbiages.get_notification_message_long(bos.get_next_outage_window(user))
                     if msg and user.to_bot: 
                         try:
                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
