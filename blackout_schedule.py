@@ -111,7 +111,7 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
             else:
                 current['end'] = None # will look for outage start
         # after the last window
-        elif not sch_type and hour >= int(sch_today[window_id]['end']):
+        elif not sch_type and hour >= int(sch_today[window_id]['end']) and window_id == (len(sch_today) - 1):
             # not in window
             sch_type         = 'OUT_OF_SCHEDULE'
             current['type']  = sch_type
