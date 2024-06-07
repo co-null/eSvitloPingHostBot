@@ -2,7 +2,7 @@ from telethon import TelegramClient, events, sync, utils
 import tele_secrets
 import config as cfg, user_settings as us
 from datetime import datetime 
-import pytz
+import pytz, time
 
 use_tz = pytz.timezone(cfg.TZ)
 
@@ -30,6 +30,9 @@ async def newMessageSender(event):
         if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
             print(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
             await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
+            time.sleep(1)
+    #ensure that messages are sent before deleting
+    time.sleep(15)
     await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])
 
 with client:
