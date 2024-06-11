@@ -64,7 +64,6 @@ settings_menu_markup = ReplyKeyboardMarkup(settings_menu_keyboard, resize_keyboa
 
 def reply_md(message:str, update: Update, reply_markup = None) -> None:
     message = utils.get_text_safe_to_markdown(message)
-    #print(f'Message {message}')
     update.message.reply_text(message, reply_markup=reply_markup, parse_mode=PARSE_MODE)
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -466,9 +465,9 @@ def _listen(user_id, chat_id):
         if status==user.last_state: changed = False
         else: changed = True
         if changed: 
-            user.last_ts = max(user.last_heared_ts, user.last_ts)
             msg = actions.get_state_msg(user, status, False)
             msg = utils.get_text_safe_to_markdown(msg)
+            user.last_ts    = max(user.last_heared_ts, user.last_ts)
             user.last_state = status
         user.save_state()
         if changed and msg and user.to_bot: 
