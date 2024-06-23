@@ -25,6 +25,7 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     now_ts_short = datetime.now(use_tz).strftime('%H:%M')
     msg = ""
     add = ""
+    windows = None
     if user.has_schedule: 
         try:
             windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
