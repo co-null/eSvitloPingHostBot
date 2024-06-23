@@ -1,5 +1,6 @@
 import config as cfg
 import user_settings as us
+import utils
 from datetime import datetime, timedelta
 import pytz
 
@@ -62,8 +63,18 @@ def get_outage_message(state: str, windows: dict) -> str:
     try:
         current = windows['current']
         next    = windows['next']
+        next1   = utils.get_key_safe(windows, 'over_next1', None)
+        next2   = utils.get_key_safe(windows, 'over_next2', None)
     except Exception as e:
         return ''
+    # Got the next outage
+    add = ""
+    if next['type'] != 'DEFINITE_OUTAGE':
+        if next1 and next1['type'] == 'DEFINITE_OUTAGE':
+            add = f"⏰ Наступне відключення з *{next1['start']:02}:00* до *{next1['end']:02}:00*"
+        elif next2 and next2['type'] == 'DEFINITE_OUTAGE':
+            add = f"⏰ Наступне відключення з *{next2['start']:02}:00* до *{next2['end']:02}:00*"
+
     if state == cfg.ALIVE:
         if current['type'] == 'OUT_OF_SCHEDULE':
             # matched
@@ -73,11 +84,11 @@ def get_outage_message(state: str, windows: dict) -> str:
             message = f"⏰ Діє сіра зона. Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
-            message = f"⏰ Очікуване відключення з *{current['start']:02}:00* до *{current['end']:02}:00*"
+            message = f"⏰ Очікуване відключення з *{current['start']:02}:00* до *{current['end']:02}:00*\n" + add
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
-            message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год."
+            message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год.\n" + add
         elif current['type'] == 'POSSIBLE_OUTAGE':
             message = f"⏰ Відключення в сірій зоні\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
@@ -94,3 +105,12 @@ def get_notification_message_long(window: dict):
     start_ts_short = window['start'].strftime('%H:%M')
     end_ts_short   = window['end'].strftime('%H:%M')
     return f"⏰ Увага, очікується відключення за графіком з *{start_ts_short}* до *{end_ts_short}*"
+
+def get_notificatiom_tomorrow_schedule(schedule_tom):
+    message = '🗓 Графік відключень на завтра:\n\n'
+    for window in schedule_tom:
+        if window['type'] == 'DEFINITE_OUTAGE':
+            message += f"🔦 Відключення з *{window['start']:02}:00* до *{window['end']:02}:00*\n"
+        #elif window['type'] == 'POSSIBLE_OUTAGE':
+        #    message += f"⚠️ Сіра зона з *{window['start']:02}:00* до *{window['end']:02}:00*\n"
+    return message
