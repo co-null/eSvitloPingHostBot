@@ -146,6 +146,17 @@ def yasno_schedule(update: Update, context: CallbackContext) -> None:
     user.save()
     update.message.reply_text(msg)
 
+def get_tom_schedule(update: Update, context: CallbackContext) -> None:
+    user_id = str(update.message.from_user.id)
+    chat_id = update.message.chat_id
+    if user_id not in us.user_settings.keys():
+        reply_md(cfg.msg_error, update)
+        return
+    user = us.User(user_id, chat_id)
+    msg = verbiages.get_notificatiom_tomorrow_schedule(bos.get_windows_for_tomorrow(user))
+    reply_md(msg, update)
+
+
 def reminder(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
@@ -161,6 +172,7 @@ def reminder(update: Update, context: CallbackContext) -> None:
     elif user.to_remind and user.has_schedule:
         user.to_remind = False
         reply_md(cfg.msg_reminder_off, update)
+    _notification_schedules()
     user.save()
 
 def handle_input(update: Update, context: CallbackContext) -> None:
@@ -399,8 +411,8 @@ def _ping(user_id, chat_id):
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
         user.save_state()
     except Exception as e:
-        print(f"Exception in _ping({user_id}, {chat_id}): {e}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
+        print(f"Exception in _ping\({user_id}, {chat_id}\): {e}")
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
 
 def ping_now(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -409,11 +421,29 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         reply_md(cfg.msg_error, update)
         return
     user = us.User(user_id, chat_id)
-    if not user.ip_address:
+    if not user.ip_address and not user.listener:
         reply_md(cfg.msg_noip, update)
         return
-    result = actions._ping_ip(user, True)
-    msg    = utils.get_text_safe_to_markdown(result.message)
+    if user.ip_address:
+        result = actions._ping_ip(user, True)
+        msg    = utils.get_text_safe_to_markdown(result.message)
+    else:
+        delta   = datetime.now() - max(user.last_heared_ts, user.last_ts)
+        seconds = 86400*delta.days + delta.seconds
+        if seconds >= 300 and user.last_state == cfg.ALIVE:
+            status = cfg.OFF
+        elif seconds < 300 and user.last_state == cfg.ALIVE:
+            # still enabled
+            status = cfg.ALIVE
+        elif seconds < 300 and user.last_state == cfg.OFF:
+            # already turned off
+            status = cfg.OFF
+        else:    
+            # still turned off
+            status = user.last_state
+        msg = actions.get_state_msg(user, status, False)
+        msg = utils.get_text_safe_to_markdown(msg)
+        result = utils.PingResult(False, msg)
     if result.message: 
         reply_md(result.message, update, reply_markup=main_menu_markup)
     if msg and result.changed and user.channel_id:
@@ -524,6 +554,29 @@ def _send_notifications():
                     user.next_notification_ts = None
                     user.next_outage_ts       = None
                     user.save_state()
+
+            if user.has_schedule and user.to_remind and user.tom_notification_ts and user.tom_schedule_ts:
+                if user.tom_notification_ts < now_ts and user.tom_schedule_ts > now_ts:
+                    # will send
+                    msg = verbiages.get_notificatiom_tomorrow_schedule(bos.get_windows_for_tomorrow(user))
+                    if msg and user.to_bot: 
+                        try:
+                            bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+                        except Exception as e:
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                    if msg and user.to_channel and user.channel_id:
+                        try:
+                            bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+                        except Exception as e:
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                    # update next_notification_ts so we'll not send again
+                    user.tom_notification_ts = user.tom_schedule_ts
+                    user.save_state()
+                elif user.tom_schedule_ts < now_ts:
+                    # outdated
+                    user.tom_notification_ts = None
+                    user.tom_schedule_ts     = None
+                    user.save_state()
     except Exception as e:
         print(f"Exception in _send_notifications(): {e}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications(): {e}", parse_mode=PARSE_MODE) 
@@ -587,6 +640,7 @@ dispatcher.add_handler(CommandHandler("yasnoschedule", yasno_schedule))
 dispatcher.add_handler(CommandHandler("reminder", reminder))
 dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
 dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
+dispatcher.add_handler(CommandHandler("gettomschedule", get_tom_schedule))
 
 dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), lambda update, context: go(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))

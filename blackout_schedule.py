@@ -43,8 +43,10 @@ def adjust_dtek_schedule(file: str):
     city_id         = custom_schedule['city_id']
     city            = {}
     for group_id in bo_groups.keys():
+        #print(f"Group {group_id}")
         _days = []
         for day in range(7):
+            #print(f"Group {group_id}, Day {str(day+1)}")
             _day = []
             prev_state = None
             opened = False
@@ -53,7 +55,6 @@ def adjust_dtek_schedule(file: str):
                 if state == 'no': t_type = 'DEFINITE_OUTAGE'
                 elif state == 'maybe': t_type = 'POSSIBLE_OUTAGE'
                 else: t_type = 'OUT_OF_SCHEDULE'
-
                 if t_type != 'OUT_OF_SCHEDULE' and not prev_state:
                     # create first window
                     _window = {}
@@ -63,8 +64,10 @@ def adjust_dtek_schedule(file: str):
                     prev_state = state
                     opened = True
                 elif t_type != 'OUT_OF_SCHEDULE' and prev_state != state:
-                    # create next wimdow
-                    if opened: _day.append(dict(_window))
+                    # create next window
+                    if opened: 
+                        _day.append(dict(_window))
+                        #print(f"Window {_window}")
                     _window = {}
                     _window['start'] = hour
                     _window['end']   = hour+1
@@ -74,14 +77,18 @@ def adjust_dtek_schedule(file: str):
                 elif t_type != 'OUT_OF_SCHEDULE' and prev_state == state:
                     # update window
                     _window['end'] = hour+1
+                    opened = True
                 elif t_type == 'OUT_OF_SCHEDULE' and prev_state != state:
                     # close previous window
                     prev_state = state
-                    if opened: _day.append(dict(_window))
+                    if opened: 
+                        _day.append(dict(_window))
+                        #print(f"Window {_window}")
                     opened = False
-
                 # close if this is the last hour
-                if hour == 23 and opened: _day.append(dict(_window))
+                if hour == 23 and opened: 
+                    #print(f"Window {_window}")
+                    _day.append(dict(_window))
             _days.append(_day[:])
         city[bo_groups[group_id]] = _days[:]
     blackout_schedule[city_id] = city
@@ -187,25 +194,27 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
             next['end'] = sch_tom[0]['end']
     return {'current': current, 'next': next}
 
-def get_windows_for_tomorrow(city:str, group_id: str):
+def get_windows_for_tomorrow(user: us.User):
+    city     = bo_cities[user.city]
+    group_id = bo_groups[user.group]
     sch     = []
     now_ts  = datetime.now(use_tz)
     delta   = timedelta(hours=1)
     before  = now_ts.replace(hour=23, minute=59, second=59)
     windows = get_window_by_ts(before, city, group_id)
+    last    = None
     if windows['current']['type'] == 'DEFINITE_OUTAGE':
         last = windows['current']
         sch.append(dict(windows['current']))
     for hour in range(24):
         before = before + delta
         windows = get_window_by_ts(before, city, group_id)
-        if windows['current']['type'] == 'DEFINITE_OUTAGE' or windows['current']['type'] == 'POSSIBLE_OUTAGE':
-            if not last:
-                last = windows['current']
-                sch.append(dict(windows['current']))
-            elif windows['current']['type'] != last['type']:
-                last = windows['current']
-                sch.append(dict(windows['current']))
+        if not last:
+            last = windows['current']
+            sch.append(dict(windows['current']))
+        if windows['current']['type'] != last['type']:
+            last = windows['current']
+            sch.append(dict(windows['current']))
     return sch
 
 def get_windows_analysis(city:str, group_id: str) -> dict:
@@ -214,7 +223,13 @@ def get_windows_analysis(city:str, group_id: str) -> dict:
         if bo_cities[city_key] not in blackout_schedule.keys():
             get_blackout_schedule()
             time.sleep(5)
-    return get_window_by_ts(now_ts, city, group_id)
+    windows = get_window_by_ts(now_ts, city, group_id)
+    if windows['next']['type'] != 'DEFINITE_OUTAGE':
+        over_next_ts = now_ts.replace(hour=windows['next']['end'], minute=30, second=0)
+        over_next    = get_window_by_ts(over_next_ts, city, group_id)
+    windows['over_next1'] = over_next['current']
+    windows['over_next2'] = over_next['next']
+    return windows
 
 def get_next_outage(city:str, group_id: str) -> datetime:
     now_ts  = datetime.now(use_tz)
@@ -223,7 +238,7 @@ def get_next_outage(city:str, group_id: str) -> datetime:
         return now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
     else: return None
 
-def get_next_outage_window(user: us.User) -> datetime:
+def get_next_outage_window(user: us.User):
     now_ts  = datetime.now(use_tz)
     windows = get_window_by_ts(now_ts, bo_cities[user.city], bo_groups[user.group])
     if windows['next']['type'] == 'DEFINITE_OUTAGE':
@@ -240,6 +255,7 @@ def get_notification_ts(next_outage: datetime) -> datetime:
 
 def set_notifications():
     #print("Start set notifications job")
+    now_ts  = datetime.now(use_tz)
     for user_id in us.user_settings.keys():
         chat_id = us.user_settings[user_id]['chat_id']
         user    = us.User(user_id, chat_id)
@@ -252,6 +268,10 @@ def set_notifications():
                 if next_outage:
                     user.next_outage_ts       = next_outage
                     user.next_notification_ts = get_notification_ts(next_outage)
+                    user.save_state()
+            if user.has_schedule and user.to_remind and not user.tom_notification_ts:
+                    user.tom_schedule_ts     = now_ts.replace(hour=21, minute=5, second=0)
+                    user.tom_notification_ts = now_ts.replace(hour=20, minute=45, second=0)
                     user.save_state()
         except Exception as e:
             print(f"Exception in blackout_schedule.set_notifications(): {e}")
