@@ -579,7 +579,7 @@ def _send_notifications():
                     user.save_state()
     except Exception as e:
         print(f"Exception in _send_notifications(): {e}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications(): {e}", parse_mode=PARSE_MODE) 
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}", parse_mode=PARSE_MODE) 
 
 def _gather_schedules():
     # Stop any existing job before starting a new one
