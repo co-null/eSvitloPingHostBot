@@ -7,10 +7,11 @@ from datetime import datetime, timedelta
 import time
 import pytz
 
-use_tz = pytz.timezone(cfg.TZ)
-bo_groups = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4'}
-bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV'}
-bo_cities = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka'}
+use_tz         = pytz.timezone(cfg.TZ)
+bo_groups      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
+bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV','group_5':'Група V','group_6':'Група VI'}
+bo_cities      = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka'}
+
 blackout_schedule = {}
 shedulers = {}
 
@@ -186,6 +187,26 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
             next['end'] = sch_tom[0]['end']
     return {'current': current, 'next': next}
 
+def get_windows_for_tomorrow(city:str, group_id: str):
+    sch     = []
+    now_ts  = datetime.now(use_tz)
+    delta   = timedelta(hours=1)
+    before  = now_ts.replace(hour=23, minute=59, second=59)
+    windows = get_window_by_ts(before, city, group_id)
+    if windows['current']['type'] == 'DEFINITE_OUTAGE':
+        last = windows['current']
+        sch.append(dict(windows['current']))
+    for hour in range(24):
+        before = before + delta
+        windows = get_window_by_ts(before, city, group_id)
+        if windows['current']['type'] == 'DEFINITE_OUTAGE' or windows['current']['type'] == 'POSSIBLE_OUTAGE':
+            if not last:
+                last = windows['current']
+                sch.append(dict(windows['current']))
+            elif windows['current']['type'] != last['type']:
+                last = windows['current']
+                sch.append(dict(windows['current']))
+    return sch
 
 def get_windows_analysis(city:str, group_id: str) -> dict:
     now_ts  = datetime.now(use_tz)
