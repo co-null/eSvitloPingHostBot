@@ -19,13 +19,16 @@ def get_blackout_schedule():
     global blackout_schedule
     try:
         response = urlr.get(cfg.YASNO_URL)
-        blackout_schedule = response.json()
-        blackout_schedule = blackout_schedule['components'][2]['schedule']
-        response.close()
-        adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
-        save_blackout_shedule()
+        tmp_schedule = None
+        tmp_schedule = response.json()
+        tmp_schedule = tmp_schedule['components'][2]['schedule']
+        response.close()    
     except Exception as e:
         print(f'Exception happened in get_blackout_schedule(): {e} ')
+    if tmp_schedule:
+        blackout_schedule = tmp_schedule
+    adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
+    save_blackout_shedule()
 
 
 # Save blackout shedule to file
@@ -225,10 +228,10 @@ def get_windows_analysis(city:str, group_id: str) -> dict:
             time.sleep(5)
     windows = get_window_by_ts(now_ts, city, group_id)
     if windows['next']['type'] != 'DEFINITE_OUTAGE':
-        over_next_ts = now_ts.replace(hour=windows['next']['end'], minute=30, second=0)
+        over_next_ts = now_ts.replace(hour=windows['next']['end']-1, minute=30, second=0)
         over_next    = get_window_by_ts(over_next_ts, city, group_id)
-    windows['over_next1'] = over_next['current']
-    windows['over_next2'] = over_next['next']
+        windows['over_next1'] = over_next['current']
+        windows['over_next2'] = over_next['next']
     return windows
 
 def get_next_outage(city:str, group_id: str) -> datetime:
