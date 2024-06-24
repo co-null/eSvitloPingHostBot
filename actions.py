@@ -31,7 +31,7 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
             windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
             add = "\n" + verbiages.get_outage_message(status, windows)
         except Exception as e:
-            print(f'Exception in get_state_msg(): {e}, status={status}, windows={windows}')
+            print(f'Exception in get_state_msg: {e}, status={status}, windows={windows}')
     # if last_state is not set
     if not user.last_state:
         if user.label and user.label != '':
@@ -41,22 +41,22 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     # turned on
     if user.last_state and user.last_state != status and user.last_state == cfg.OFF:
         delta = datetime.now() - user.last_ts
-        msg += f"💡*{now_ts_short}* Юху! Світло повернулося!\n" + "⏱Було відсутнє *" + verbiages.get_string_period(delta) + "*"
+        msg += f"💡*{now_ts_short}* Юху! Світло повернулося!\n" + "⏱ Було відсутнє *" + verbiages.get_string_period(delta) + "*"
         msg += add
     # turned off
     elif user.last_state and user.last_state != status and user.last_state == cfg.ALIVE:
         delta = datetime.now() - user.last_ts
-        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову без світла 😒\n" + "⏱Було наявне *" + verbiages.get_string_period(delta) + "*"
+        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову без світла 😒\n" + "⏱ Було наявне *" + verbiages.get_string_period(delta) + "*"
         msg += add
     # same
     elif cfg.isPostOK == 'T' or immediately:
         delta = datetime.now() - user.last_ts
         if status == cfg.ALIVE:
             msg += cfg.msg_alive
-            msg += "\n" + "⏱Світло є вже *" + verbiages.get_string_period(delta) + "*"
+            msg += "\n" + "⏱ Світло є вже *" + verbiages.get_string_period(delta) + "*"
             msg += add
         else:
             msg += cfg.msg_blackout
-            msg += "\n" + "⏱Світла немає вже *" + verbiages.get_string_period(delta) + "*"
+            msg += "\n" + "⏱ Світла немає вже *" + verbiages.get_string_period(delta) + "*"
             msg += add
     return msg

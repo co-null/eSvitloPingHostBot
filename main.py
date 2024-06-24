@@ -428,6 +428,7 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         result = actions._ping_ip(user, True)
         msg    = utils.get_text_safe_to_markdown(result.message)
     else:
+        if not user.last_heared_ts: user.last_heared_ts = user.last_ts
         delta   = datetime.now() - max(user.last_heared_ts, user.last_ts)
         seconds = 86400*delta.days + delta.seconds
         if seconds >= 300 and user.last_state == cfg.ALIVE:
@@ -441,11 +442,11 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         else:    
             # still turned off
             status = user.last_state
-        msg = actions.get_state_msg(user, status, False)
+        msg = actions.get_state_msg(user, status, True)
         msg = utils.get_text_safe_to_markdown(msg)
         result = utils.PingResult(False, msg)
     if result.message: 
-        reply_md(result.message, update, reply_markup=main_menu_markup)
+        bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
     if msg and result.changed and user.channel_id:
         bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
