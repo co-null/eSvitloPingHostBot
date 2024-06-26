@@ -109,7 +109,7 @@ def set_ip(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_ip()
     user.save()
-    reply_md(cfg.msg_setip, update, reply_markup=settings_menu_markup)
+    update.message.reply_text(cfg.msg_setip)
 
 def set_label(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -120,7 +120,7 @@ def set_label(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_label()
     user.save()
-    reply_md(cfg.msg_setlabel, update, reply_markup=settings_menu_markup)
+    update.message.reply_text(cfg.msg_setlabel)
 
 def set_channel(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -131,7 +131,7 @@ def set_channel(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_channel()
     user.save()
-    reply_md(cfg.msg_setchannel, update, reply_markup=settings_menu_markup)
+    update.message.reply_text(cfg.msg_setchannel)
 
 def yasno_schedule(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -187,32 +187,61 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         return
     user = us.User(user_id, chat_id)
     if user.awaiting_ip:
-        user.ip_address       = update.message.text[:15]
         user.toggle_nowait()
-        user.awaiting_channel = False
+        if update.message.text[:15] == '-' and user.ip_address:
+            update.message.reply_text('ІР адресу видалено')
+            user.ip_address = None
+            user.save()
+            return 
+        elif update.message.text[:15] == '-' and not user.ip_address:
+            update.message.reply_text('Скасовано')
+            user.save()
+            return
+        else:
+            user.ip_address = update.message.text[:15]
         if not user.label or user.label == '':
             user.toggle_awaiting_label()
             update.message.reply_text(f'Вказано IP адресу {user.ip_address}. Тепер вкажіть, будь-ласка, назву:')
         else:
             reply_md(f'Вказано IP адресу {user.ip_address}', update)
     elif user.awaiting_label:
-        user.label = update.message.text[:255]
         user.toggle_nowait()
-        update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг (пінг)')
+        if update.message.text[:255] == '-' and user.label:
+            update.message.reply_text('Назву видалено')
+            user.label = None
+            user.save()
+            return 
+        elif update.message.text[:255] == '-' and not user.label:
+            update.message.reply_text('Скасовано')
+            user.save()
+            return
+        else:
+            user.label = update.message.text[:255]
+            update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг (пінг)')
     elif user.awaiting_channel:
-        channel_id = update.message.text[:255]
-        if channel_id.startswith('https://t.me/'): channel_id.replace('https://t.me/', '')
-        if not channel_id.startswith('@'): channel_id = '@' + channel_id
-        user.channel_id = channel_id
-        user.toggle_nowait()
-        update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
+         user.toggle_nowait()
+         if update.message.text[:255] == '-' and user.channel_id:
+            update.message.reply_text('Канал видалено')
+            user.channel_id = None
+            user.save()
+            return 
+         elif update.message.text[:255] == '-' and not user.channel_id:
+            update.message.reply_text('Скасовано')
+            user.save()
+            return
+         else:
+            channel_id = update.message.text[:255]
+            if channel_id.startswith('https://t.me/'): channel_id = channel_id.replace('https://t.me/', '')
+            if not channel_id.startswith('@'): channel_id = '@' + channel_id
+            user.channel_id = channel_id
+            update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
     elif user.awaiting_city:
+        user.toggle_nowait()
         if update.message.text[:255] == '-':
             update.message.reply_text('Скасовано')
             user.city         = None
             user.group        = None
             user.has_schedule = False
-            user.toggle_nowait()
         else:
             user.city = None
             entered = str(update.message.text[:255])
@@ -221,18 +250,17 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                     user.city = entered
             if not user.city: 
                 update.message.reply_text('Некоректний ввод')
-                user.toggle_nowait()
                 user.save()
                 return            
             user.toggle_awaiting_group()
             update.message.reply_text(f'Вказано {user.city}. {cfg.msg_setgroup}')
     elif user.awaiting_group:
+        user.toggle_nowait()
         if update.message.text[:1] == '-':
             update.message.reply_text('Скасовано')
             user.city         = None
             user.group        = None
             user.has_schedule = False
-            user.toggle_nowait()
         else:
             user.group = None
             entered = str(update.message.text[:1])
@@ -241,10 +269,8 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                     user.group = group
             if not user.group: 
                 update.message.reply_text('Некоректний ввод')
-                user.toggle_nowait()
                 user.save()
                 return            
-            user.toggle_nowait()
             user.has_schedule = True
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
