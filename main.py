@@ -4,6 +4,7 @@ from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, constants
 from telegram.utils.request import Request as TRequest
 import logging
 import schedule
+from safe_schedule import SafeScheduler, scheduler
 import time
 import threading
 from datetime import datetime
@@ -75,9 +76,9 @@ def start(update: Update, context: CallbackContext) -> None:
     else:
         # Recreate the jobs if saved previously
         if user.ping_job:
-            us.user_jobs[user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+            us.user_jobs[user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if user.listener:
-            us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+            us.listeners[user_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
         if user.has_schedule:
             _gather_schedules()
             _notification_schedules()
@@ -281,9 +282,9 @@ def handle_input(update: Update, context: CallbackContext) -> None:
 def _start_ping(user: us.User) -> None:
     # Stop any existing job before starting a new one
     if user.user_id in us.user_jobs.keys():
-        schedule.cancel_job(us.user_jobs[user.user_id])
+        scheduler.cancel_job(us.user_jobs[user.user_id])
     # Schedule the ping job every min
-    us.user_jobs[user.user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+    us.user_jobs[user.user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
     user.ping_job = 'scheduled'
     user.save()
     # Initial ping immediately
@@ -291,7 +292,7 @@ def _start_ping(user: us.User) -> None:
 
 def _stop_ping(user: us.User) -> None:
     if user.user_id in us.user_jobs.keys():
-        schedule.cancel_job(us.user_jobs[user.user_id])
+        scheduler.cancel_job(us.user_jobs[user.user_id])
     user.ping_job = None
     user.save()
 
@@ -321,9 +322,9 @@ def ping(update: Update, context: CallbackContext) -> None:
 def _start_listen(user: us.User):
     # Stop any existing job before starting a new one
     if user.user_id in us.listeners.keys():
-        schedule.cancel_job(us.listeners[user.user_id])
+        scheduler.cancel_job(us.listeners[user.user_id])
     # Schedule the listen job every 5 min
-    us.listeners[user.user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
+    us.listeners[user.user_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user.user_id, chat_id=user.chat_id)
     user.listener = True
     user.save()
     # Initial check immediately
@@ -331,7 +332,7 @@ def _start_listen(user: us.User):
 
 def _stop_listen(user: us.User):
     if user.user_id in us.listeners.keys():
-        schedule.cancel_job(us.listeners[user.user_id])
+        scheduler.cancel_job(us.listeners[user.user_id])
     user.listener = False
     user.save()
 
@@ -611,25 +612,33 @@ def _send_notifications():
 def _gather_schedules():
     # Stop any existing job before starting a new one
     if 'yasno' in bos.shedulers.keys():
-        schedule.cancel_job(bos.shedulers['yasno'])
+        scheduler.cancel_job(bos.shedulers['yasno'])
     # Schedule gathering job every 60 min
-    bos.shedulers['yasno'] = schedule.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
+    bos.shedulers['yasno'] = scheduler.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
 
 def _notification_schedules():
     # Stop any existing job before starting a new one
     if 'set_notification' in bos.shedulers.keys():
-        schedule.cancel_job(bos.shedulers['set_notification'])
+        scheduler.cancel_job(bos.shedulers['set_notification'])
     # Schedule set_notification job every 30 min
-    bos.shedulers['set_notification'] = schedule.every(cfg.SCHEDULE_SET_NOTIFICATION).minutes.do(bos.set_notifications)
+    bos.shedulers['set_notification'] = scheduler.every(cfg.SCHEDULE_SET_NOTIFICATION).minutes.do(bos.set_notifications)
     if 'send_notification' in bos.shedulers.keys():
-        schedule.cancel_job(bos.shedulers['send_notification'])
+        scheduler.cancel_job(bos.shedulers['send_notification'])
     # Schedule send_notification job every min
-    bos.shedulers['send_notification'] = schedule.every(cfg.SCHEDULE_SEND_NOTIFICATION).minutes.do(_send_notifications)
+    bos.shedulers['send_notification'] = scheduler.every(cfg.SCHEDULE_SEND_NOTIFICATION).minutes.do(_send_notifications)
+
 
 def schedule_pings():
     while True:
-        schedule.run_pending()
+        scheduler.run_pending()
         time.sleep(1)
+
+def get_scheduled_jobs(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
+    if str(chat_id) == bot_secrets.ADMIN_ID:
+        jobs    = scheduler.get_jobs()
+        for job in range(len(jobs)):
+            bot.send_message(chat_id=chat_id, text=str(jobs[job]))
 
 # Up jobs if were saved
 for user_id in us.user_settings.keys():
@@ -638,12 +647,12 @@ for user_id in us.user_settings.keys():
     try:
         if user.ping_job:
             if user_id in us.user_jobs.keys():
-                schedule.cancel_job(us.user_jobs[user_id])
-            us.user_jobs[user_id] = schedule.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+                scheduler.cancel_job(us.user_jobs[user_id])
+            us.user_jobs[user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if user.listener:
             if user_id in us.listeners.keys():
-                schedule.cancel_job(us.listeners[user_id])
-            us.listeners[user_id] = schedule.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
+                scheduler.cancel_job(us.listeners[user_id])
+            us.listeners[user_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
     except Exception as e:
         continue
 _gather_schedules()
@@ -668,6 +677,7 @@ dispatcher.add_handler(CommandHandler("reminder", reminder))
 dispatcher.add_handler(CommandHandler("posttobot", post_to_bot))
 dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
 dispatcher.add_handler(CommandHandler("gettomschedule", get_tom_schedule))
+dispatcher.add_handler(CommandHandler("getscheduledjobs", get_scheduled_jobs))
 
 dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), lambda update, context: go(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))
@@ -696,7 +706,6 @@ def send():
     #caller_ip = request.remote_addr
     if not sender:
         return jsonify({"error": "chat_id is required"}), 400
-
     try:
         _heard(sender)
         return jsonify({"status": "Message sent successfully"}), 200
