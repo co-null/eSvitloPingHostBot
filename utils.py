@@ -4,6 +4,7 @@ import subprocess
 from datetime import datetime
 import pytz
 import time
+import requests as urlr
 
 use_tz = pytz.timezone(cfg.TZ)
 
@@ -36,3 +37,13 @@ def get_text_safe_to_markdown(text: str)-> str:
 def get_key_safe(dictionary, key, default):
     if key not in dictionary.keys(): return default
     else: return dictionary[key]
+
+def check_custom_api1(endpoint: str, headers) -> bool:
+    response = urlr.get(endpoint, headers=headers)
+    data = response.json()
+    data = get_key_safe(get_key_safe(data, 'data', {}), 'thingList', {})
+    try:
+        check = str(([x['itemData']['online'] for x in data if x['itemData']['deviceid'] == '1001f89cc4'])[0]) == 'True'
+        return cfg.ALIVE if check else cfg.OFF
+    except Exception as e:
+        return cfg.OFF    
