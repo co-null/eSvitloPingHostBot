@@ -10,7 +10,7 @@ import pytz
 use_tz         = pytz.timezone(cfg.TZ)
 bo_groups      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
 bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV','group_5':'Група V','group_6':'Група VI'}
-bo_cities      = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka'}
+bo_cities      = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka', 'Ірпінь':'irpin'}
 
 blackout_schedule = {}
 shedulers = {}
@@ -28,6 +28,7 @@ def get_blackout_schedule():
     if tmp_schedule:
         blackout_schedule = tmp_schedule
     adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
+    adjust_dtek_schedule('dtek_irpin.json')
     save_blackout_shedule()
 
 
