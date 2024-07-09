@@ -268,7 +268,7 @@ def set_notifications():
         user    = us.User(user_id, chat_id)
         try:
             # has schedule and notification not set
-            if user.has_schedule and user.to_remind and not user.next_notification_ts:
+            if user.has_schedule and user.to_remind and user.last_ts and not user.next_notification_ts:
                 delta = datetime.now() - user.last_ts
                 if delta.days > 0: continue
                 next_outage = get_next_outage(bo_cities[user.city], bo_groups[user.group])
