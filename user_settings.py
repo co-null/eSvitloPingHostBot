@@ -1,13 +1,16 @@
 import os
 import json
-from config import SETTINGS_FILE, STATES_FILE
+from config import SETTINGS_FILE, STATES_FILE, TZ
 import utils
 import db
 from datetime import datetime
+import pytz
+
+use_tz = pytz.timezone(TZ)
 
 sql_user_select = "SELECT user_id, new, ts_ins FROM user WHERE user_id = ?;"
 sql_user_insert = "INSERT INTO user (user_id, new, ts_ins) VALUES (?, ?, ?);"
-sql_user_update = "UPDATE user SET new = ? WHERE user_id = ?;"
+sql_user_update = "UPDATE user SET ? = ? WHERE user_id = ?;"
 sql_spot_select = "SELECT chat_id, user_id, ip_address, listener, label, channel_id, to_bot, to_channel, ping_job,awaiting_ip, awaiting_label, awaiting_channel, awaiting_city, awaiting_group, has_schedule, city, sch_group, to_remind, ts_ins, ts_upd FROM spot WHERE chat_id = ?;"
 sql_spot_insert = "INSERT INTO spot (chat_id, user_id, ts_ins, ts_upd) VALUES (?, ?, ?, ?);"
 sql_spot_state_select = "SELECT chat_id, last_state, last_ts, last_heared_ts FROM spot_state WHERE chat_id = ?;"
@@ -32,7 +35,7 @@ class Userdb:
         if not self.__user_id:
             self.__user_id = user_id
             self.__new     = True
-            self.__ts_ins  = datetime.now()
+            self.__ts_ins  = datetime.now(use_tz)
             db.cur.execute(sql_user_insert, (user_id, 1, self.__ts_ins))
         db.con.commit()
 
@@ -51,8 +54,8 @@ class Userdb:
     
     @new.setter
     def new(self, new: bool):
-        self.__name = new
-        db.cur.execute(sql_user_update, ({1 if new else 0}, self.__user_id))
+        self.__new = new
+        db.cur.execute(sql_user_update, ('new', {1 if new else 0}, self.__user_id))
         db.con.commit()
 
 class Spot:
@@ -91,10 +94,10 @@ class Spot:
         self.__chat_id = chat_id
         self.__get_from_db()
         if not self.__user_id:
-            self.__chat_id          = chat_id
-            self.__user_id          = user_id
-            self.__ts_ins           = datetime.now()
-            self.__ts_upd           = datetime.now()
+            self.__chat_id = chat_id
+            self.__user_id = user_id
+            self.__ts_ins  = datetime.now(use_tz)
+            self.__ts_upd  = datetime.now(use_tz)
             db.cur.execute(sql_spot_insert, (chat_id, user_id, self.__ts_ins, self.__ts_upd))
         db.con.commit()
 
@@ -139,6 +142,8 @@ class User:
             self.city                     = None
             self.group                    = None
             self.to_remind                = False
+            self.endpoint                 = None
+            self.headers                  = None
             self.last_state: str          = None
             self.last_ts: datetime        = None
             self.last_heared_ts: datetime = None
@@ -166,6 +171,8 @@ class User:
             self.city: str                = utils.get_key_safe(_user, 'city', None)
             self.group: str               = utils.get_key_safe(_user, 'group', None)
             self.to_remind: bool          = utils.get_key_safe(_user, 'to_remind', False)
+            self.endpoint: str            = utils.get_key_safe(_user, 'endpoint', None)
+            self.headers: str             = utils.get_key_safe(_user, 'headers', None)
             self.last_state: str          = utils.get_key_safe(_state, 'last_state', None)
 
             date_str = utils.get_key_safe(_state, 'last_ts', None)
@@ -223,6 +230,8 @@ class User:
         _user['city']             = self.city
         _user['group']            = self.group
         _user['to_remind']        = self.to_remind
+        _user['endpoint']         = self.endpoint
+        _user['headers']          = self.headers
         _state = utils.get_key_safe(user_states, self.user_id, {})
         _state['last_state'] = self.last_state
         if self.last_ts: 

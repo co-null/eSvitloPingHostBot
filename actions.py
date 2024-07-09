@@ -19,7 +19,17 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
             user.last_ts    = datetime.now()
             user.save_state()
         return utils.PingResult(changed, msg)
-    else: utils.PingResult(False, "")
+    elif not user.ip_address and user.endpoint and user.ping_job == 'scheduled':
+        status = utils.check_custom_api1(user.endpoint, user.headers)
+        if user.last_state and status==user.last_state: changed = False
+        else: changed = True
+        msg = get_state_msg(user, status, immediately)
+        if changed:
+            user.last_state = status
+            user.last_ts    = datetime.now()
+            user.save_state()
+        return utils.PingResult(changed, msg)
+    else: utils.PingResult(False, " ")
 
 def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     now_ts_short = datetime.now(use_tz).strftime('%H:%M')

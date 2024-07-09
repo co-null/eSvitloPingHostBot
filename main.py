@@ -309,7 +309,7 @@ def ping(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     if not user.ping_job == 'scheduled':
         # If need to turn on
-        if not user.ip_address:
+        if not user.ip_address and not user.endpoint:
             reply_md(cfg.msg_noip, update)
             return
         _start_ping(user)
@@ -452,10 +452,10 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         reply_md(cfg.msg_error, update)
         return
     user = us.User(user_id, chat_id)
-    if not user.ip_address and not user.listener:
+    if not user.ip_address and not user.listener and not user.endpoint:
         reply_md(cfg.msg_noip, update)
         return
-    if user.ip_address:
+    if user.ip_address or user.endpoint:
         result = actions._ping_ip(user, True)
         msg    = utils.get_text_safe_to_markdown(result.message)
     else:
