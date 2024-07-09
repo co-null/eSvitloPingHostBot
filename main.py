@@ -76,8 +76,12 @@ def start(update: Update, context: CallbackContext) -> None:
     else:
         # Recreate the jobs if saved previously
         if user.ping_job:
+            if user_id in us.user_jobs.keys():
+                scheduler.cancel_job(us.user_jobs[user_id])
             us.user_jobs[user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
         if user.listener:
+            if user_id in us.listeners.keys():
+                scheduler.cancel_job(us.listeners[user_id])
             us.listeners[user_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes.do(_listen, user_id=user_id, chat_id=chat_id)
         if user.has_schedule:
             _gather_schedules()
