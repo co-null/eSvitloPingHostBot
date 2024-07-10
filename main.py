@@ -237,7 +237,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
          else:
             channel_id = update.message.text[:255]
             if channel_id.startswith('https://t.me/'): channel_id = channel_id.replace('https://t.me/', '')
-            if not channel_id.startswith('@'): channel_id = '@' + channel_id
+            if not channel_id.startswith('@') and not channel_id.isnumeric(): channel_id = '@' + channel_id
             user.channel_id = channel_id
             update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
     elif user.awaiting_city:
