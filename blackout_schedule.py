@@ -135,6 +135,8 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
             if hour >= int(sch_today[window_id]['start']) and hour < int(sch_today[window_id]['end']):
                 current  = dict(sch_today[window_id])
                 sch_type = sch_today[window_id]['type']
+                # add real end for 'grey' zone
+                if sch_type == 'POSSIBLE_OUTAGE': current['end_po'] = sch_today[window_id]['end']
                 # we can't close it if it's the last window
                 if window_id == (len(sch_today) - 1):
                     current['end'] = None

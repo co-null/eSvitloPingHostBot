@@ -90,7 +90,10 @@ def get_outage_message(state: str, windows: dict) -> str:
             # matched
             message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год.\n" + add
         elif current['type'] == 'POSSIBLE_OUTAGE':
-            message = f"⏰ Відключення в сірій зоні до *{current['end']:02}:00* год.\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
+            if utils.get_key_safe(current, 'end_po', None):
+                add = f" до *{current['end_po']:02}:00* год."
+            else: add = ""
+            message = f"⏰ Відключення в сірій зоні{add}\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
             message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
