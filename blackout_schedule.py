@@ -229,8 +229,10 @@ def get_windows_analysis(city:str, group_id: str) -> dict:
             time.sleep(5)
     windows = get_window_by_ts(now_ts, city, group_id)
     if windows['next']['type'] != 'DEFINITE_OUTAGE':
-        if windows['next']['start'] > windows['current']['start']:
+        if windows['next']['start'] > windows['current']['start'] and windows['next']['end'] <= 23:
             over_next_ts = now_ts.replace(hour=windows['next']['end'], minute=30, second=0)
+        elif windows['next']['end'] > 23:
+            over_next_ts = now_ts.replace(hour=windows['next']['end'] - 1, minute=30, second=0) + timedelta(hours=1)
         else:
             over_next_ts = now_ts.replace(hour=windows['next']['end'], minute=30, second=0) + timedelta(hours=24)
         over_next    = get_window_by_ts(over_next_ts, city, group_id)
