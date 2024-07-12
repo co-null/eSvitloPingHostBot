@@ -13,7 +13,9 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
         status = utils.get_ip_status(user.ip_address)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True
-        msg = get_state_msg(user, status, immediately)
+        if changed or immediately:
+            msg = get_state_msg(user, status, immediately)
+        else: msg = ""
         if changed:
             user.last_state = status
             user.last_ts    = datetime.now()
@@ -23,7 +25,9 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
         status = utils.check_custom_api1(user.endpoint, user.headers)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True
-        msg = get_state_msg(user, status, immediately)
+        if changed or immediately:
+            msg = get_state_msg(user, status, immediately)
+        else: msg = ""
         if changed:
             user.last_state = status
             user.last_ts    = datetime.now()

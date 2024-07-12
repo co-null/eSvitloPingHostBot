@@ -136,10 +136,13 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
                 current  = dict(sch_today[window_id])
                 sch_type = sch_today[window_id]['type']
                 # add real end for 'grey' zone
-                if sch_type == 'POSSIBLE_OUTAGE': current['end_po'] = sch_today[window_id]['end']
+                if sch_type == 'POSSIBLE_OUTAGE': 
+                    current['end_po'] = sch_today[window_id]['end']
+                    if current['end_po'] == 24:
+                        current['end_po'] = None
                 # we can't close it if it's the last window
                 if window_id == (len(sch_today) - 1):
-                    current['end'] = None
+                    current['end']    = None
         # window was previously found, looking for next
         # we were out of schedule or in grey window, looking for outage window
         elif sch_type and sch_type != 'DEFINITE_OUTAGE':
@@ -160,24 +163,24 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
             # we can't close it if it's the last window
             if window_id == (len(sch_today) - 1):
                 current['end'] = None
-            #else:
-                # next window is the outage end, let's save
-             #   next = dict(sch_today[window_id])
-            #s    break #finished
-        # else: no need in "else"
-
+    #lets'close grey zone if still open
+    if 'end_po' in current.keys() and not current['end_po'] and sch_tom[0]['type'] == 'POSSIBLE_OUTAGE':
+        current['end_po'] = sch_tom[0]['end']
+    elif 'end_po' in current.keys() and not current['end_po'] and sch_tom[0]['type'] != 'POSSIBLE_OUTAGE':
+        current['end_po'] = sch_tom[0]['start']
     # find next window if not found it today
     if 'type' not in next.keys():
         for window_id in range(len(sch_tom)):
             # we are looking for next outage 
             if sch_type != 'DEFINITE_OUTAGE' and sch_tom[window_id]['type'] == 'DEFINITE_OUTAGE':
                 # found outage window to close the previous one
-                current['end'] = sch_tom[window_id]['start']
+                current['end']    = sch_tom[window_id]['start']
+                #current['end_po'] = sch_today[window_id]['end']
                 # and fill in the next window
                 next = sch_tom[window_id]
                 break #finished
             # we are at outage, looking for outage end
-            # outage is till last from midnight
+            # outage is still last from midnight
             elif sch_type == 'DEFINITE_OUTAGE' and sch_tom[window_id]['type'] == 'DEFINITE_OUTAGE' and not current['end']:
                 # we'll close the current
                 current['end'] = sch_tom[window_id]['end']
