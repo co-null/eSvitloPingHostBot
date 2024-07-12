@@ -81,19 +81,24 @@ def get_outage_message(state: str, windows: dict) -> str:
             message = f"⏰ Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
         elif current['type'] == 'POSSIBLE_OUTAGE':
             # grey
-            message = f"⏰ Діє сіра зона. Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
+            if utils.get_key_safe(current, 'end_po', None):
+                prefix = f"До *{current['end_po']:02}:00* діє сіра зона."
+            else: prefix = "Діє сіра зона."
+            message = f"⏰ {prefix} Відключення за графіком з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
             message = f"⏰ Очікуване відключення з *{current['start']:02}:00* до *{current['end']:02}:00*\n" + add
     else:
         if current['type'] == 'DEFINITE_OUTAGE':
             # matched
-            message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год.\n" + add
+            if utils.get_key_safe(next, 'end_po', None):
+                gray = f"Відключення в сірій зоні до *{next['end_po']:02}:00* год."
+            message = f"⏰ Відключення за графіком до *{current['end']:02}:00* год.\n" + gray
         elif current['type'] == 'POSSIBLE_OUTAGE':
             if utils.get_key_safe(current, 'end_po', None):
-                add = f" до *{current['end_po']:02}:00* год."
-            else: add = ""
-            message = f"⏰ Відключення в сірій зоні{add}\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
+                gray = f" до *{current['end_po']:02}:00* год."
+            else: gray = ""
+            message = f"⏰ Відключення в сірій зоні{gray}\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
         else:
             # out of schedule
             message = f"😒 Відключено поза графіком\n⏰ Очікуване відключення з *{next['start']:02}:00* до *{next['end']:02}:00*"
@@ -114,6 +119,6 @@ def get_notificatiom_tomorrow_schedule(schedule_tom):
     for window in schedule_tom:
         if window['type'] == 'DEFINITE_OUTAGE':
             message += f"🔦 Відключення з *{window['start']:02}:00* до *{window['end']:02}:00*\n"
-        #elif window['type'] == 'POSSIBLE_OUTAGE':
-        #    message += f"⚠️ Сіра зона з *{window['start']:02}:00* до *{window['end']:02}:00*\n"
+        elif window['type'] == 'POSSIBLE_OUTAGE':
+            message += f"⚠️ Сіра зона до *{window['end_po']:02}:00*\n"
     return message
