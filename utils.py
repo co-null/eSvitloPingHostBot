@@ -32,7 +32,7 @@ def get_ip_status(ip: str) -> str:
     return cfg.ALIVE if check_ip(ip) else cfg.OFF
 
 def get_text_safe_to_markdown(text: str)-> str:
-    return text.replace('.', '\.').replace('!', '\!').replace('=', '\=').replace('(', '\(').replace(')', '\)')
+    return text.replace('.', '\.').replace('!', '\!').replace('=', '\=').replace('(', '\(').replace(')', '\)').replace('-', '\-').replace('{', '\{').replace('}', '\}')
 
 def get_key_safe(dictionary, key, default):
     if key not in dictionary.keys(): return default
