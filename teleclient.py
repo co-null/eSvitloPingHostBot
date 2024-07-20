@@ -27,10 +27,17 @@ async def newMessageSender(event):
     msg = event.message
     print(f"{dt} Client Event Occured")
     for user_id in us.user_settings.keys():
-        if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
-            print(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
-            await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
-            time.sleep(1)
+        try:
+            if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
+                print(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
+                if str(us.user_settings[user_id]['channel_id']).startswith('-') and str(us.user_settings[user_id]['channel_id'][1:]).isnumeric():
+                    await client.forward_messages(entity=int(us.user_settings[user_id]['channel_id']), messages=msg)
+                    time.sleep(1)
+                else: 
+                    await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
+                    time.sleep(1)
+        except Exception as e:
+            print(f"Error Occured\n{e.with_traceback()}")
     #ensure that messages are sent before deleting
     time.sleep(15)
     await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])

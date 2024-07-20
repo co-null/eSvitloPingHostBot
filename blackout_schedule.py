@@ -1,6 +1,7 @@
 import config as cfg
 import user_settings as us
 import requests as urlr
+import utils
 import os
 import json
 from datetime import datetime, timedelta
@@ -255,11 +256,17 @@ def get_next_outage(city:str, group_id: str) -> datetime:
 def get_next_outage_window(user: us.User):
     now_ts  = datetime.now(use_tz)
     windows = get_window_by_ts(now_ts, bo_cities[user.city], bo_groups[user.group])
+    next_ts = now_ts.replace(hour=windows['current']['end']) + timedelta(hours=1)
+    after   = get_window_by_ts(next_ts, bo_cities[user.city], bo_groups[user.group])
+    gray    = -1
+    if after['current']['type'] == 'POSSIBLE_OUTAGE':
+        gray = after['current']['end_po']
     if windows['next']['type'] == 'DEFINITE_OUTAGE':
         start = now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
         end   = now_ts.replace(hour=windows['next']['end'], minute=0, second=0)
-        return {'start': start, 'end': end}
-    else: return None
+        return {'start': start, 'end': end, 'po_to' : gray}
+    else: 
+        return None
 
 def get_notification_ts(next_outage: datetime) -> datetime:
     delta = timedelta(minutes=16)
