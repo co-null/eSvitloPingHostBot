@@ -562,17 +562,17 @@ def _send_notifications():
             if user.has_schedule and user.to_remind and user.next_notification_ts and user.next_outage_ts:
                 if user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state == cfg.ALIVE:
                     # will send
-                    msg = verbiages.get_notification_message_long(bos.get_next_outage_window(user))
+                    msg = utils.get_text_safe_to_markdown(verbiages.get_notification_message_long(bos.get_next_outage_window(user)))
                     if msg and user.to_bot: 
                         try:
                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
-                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                            print(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {e.with_traceback()}')
                     if msg and user.to_channel and user.channel_id:
                         try:
                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
-                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {e.with_traceback()}')
                     # update next_notification_ts so we'll not send again
                     user.next_notification_ts = user.next_outage_ts
                     user.save_state()
@@ -586,7 +586,6 @@ def _send_notifications():
                     user.next_notification_ts = None
                     user.next_outage_ts       = None
                     user.save_state()
-
             if user.has_schedule and user.to_remind and user.tom_notification_ts and user.tom_schedule_ts:
                 if user.tom_notification_ts < now_ts and user.tom_schedule_ts > now_ts:
                     # will send
@@ -610,8 +609,8 @@ def _send_notifications():
                     user.tom_schedule_ts     = None
                     user.save_state()
     except Exception as e:
-        print(f"Exception in _send_notifications(): {e}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}", parse_mode=PARSE_MODE) 
+        print(f"Exception in _send_notifications(): {e.with_traceback()}")
+        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}") 
 
 def _gather_schedules():
     # Stop any existing job before starting a new one
