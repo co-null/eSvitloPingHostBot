@@ -71,6 +71,7 @@ def start(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
     user    = us.User(user_id, chat_id)
+    logger.info(f'User {user_id} invoked "start"')
     if user.new :
         reply_md(cfg.msg_greeting, update)
     else:
@@ -92,6 +93,7 @@ def start(update: Update, context: CallbackContext) -> None:
 
 def settings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
+    logger.info(f'User {user_id} invoked "settings"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
         return
@@ -648,7 +650,7 @@ def get_users(update: Update, context: CallbackContext) -> None:
     if str(chat_id) == bot_secrets.ADMIN_ID:
         for user_id in us.user_settings.keys():
             user = us.User(user_id, us.user_settings[user_id]['chat_id'])
-            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user), parse_mode=PARSE_MODE)
+            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
 
 # Up jobs if were saved
 for user_id in us.user_settings.keys():

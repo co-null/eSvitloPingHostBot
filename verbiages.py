@@ -58,10 +58,10 @@ def get_settings(user_id: str) -> str:
     return msg + _get_settings(user)
 
 def get_full_info(user: us.User) -> str:
-    info = f"*ІД*: {user.chat_id}:\n"
+    info = f"ІД: {user.chat_id}:\n"
     info += _get_settings(user)
     info += "\nСтатуси:\n"
-    info += f"*Стан*: {user.last_state}\n"
+    info += f"Стан: {user.last_state}\n"
     info += f"Остання зміна стану (UTC): {user.last_ts}\n"
     info += f"Останній виклик слухача (UTC): {user.last_heared_ts}\n"
     #info += "*Extra*:\n"
