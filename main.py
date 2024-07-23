@@ -17,7 +17,7 @@ logger.setLevel(logging.DEBUG)
 
 # Create a file handler
 fh = logging.FileHandler('errors.log')
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 
 # Create a console handler
 ch = logging.StreamHandler()
