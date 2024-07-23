@@ -298,9 +298,8 @@ class User:
 # Load user settings from file
 def load_user_settings():
     if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, 'r') as file:
+        with open(SETTINGS_FILE, 'r', encoding='utf-8-sig') as file:
             return json.load(file)
-    return {}
 
 # Load user states from file
 def load_user_states():
