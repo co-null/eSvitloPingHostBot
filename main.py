@@ -212,18 +212,18 @@ def handle_input(update: Update, context: CallbackContext) -> None:
     user = us.User(user_id, chat_id)
     if user.awaiting_ip:
         user.toggle_nowait()
-        if update.message.text[:15] == '-' and user.ip_address:
+        if update.message.text[:20] == '-' and user.ip_address:
             update.message.reply_text('ІР адресу видалено')
             logger.info(f'User {user_id} deleted IP')
             user.ip_address = None
             user.save()
             return 
-        elif update.message.text[:15] == '-' and not user.ip_address:
+        elif update.message.text[:20] == '-' and not user.ip_address:
             update.message.reply_text('Скасовано')
             user.save()
             return
         else:
-            user.ip_address = update.message.text[:15]
+            user.ip_address = update.message.text[:20]
         if not user.label or user.label == '':
             user.toggle_awaiting_label()
             update.message.reply_text(f'Вказано IP адресу {user.ip_address}. Тепер вкажіть, будь-ласка, назву:')
