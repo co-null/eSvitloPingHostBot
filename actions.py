@@ -9,19 +9,35 @@ import pytz
 use_tz = pytz.timezone(cfg.TZ)
 
 def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
-    if user.ip_address and user.ping_job == 'scheduled':
-        status = utils.get_ip_status(user.ip_address)
-        if user.last_state and status==user.last_state: changed = False
-        else: changed = True
-        if changed or immediately:
-            msg = get_state_msg(user, status, immediately)
-        else: msg = ""
-        if changed:
-            user.last_state = status
-            user.last_ts    = datetime.now()
-            user.save_state()
-        return utils.PingResult(changed, msg)
-    elif not user.ip_address and user.endpoint and user.ping_job == 'scheduled':
+    if user.ip_address: #and user.ping_job == 'scheduled':
+        port_pos =  user.ip_address.find(':')
+        if port_pos == -1:
+            status = utils.get_ip_status(user.ip_address)
+            if user.last_state and status==user.last_state: changed = False
+            else: changed = True
+            if changed or immediately:
+                msg = get_state_msg(user, status, immediately)
+            else: msg = ""
+            if changed:
+                user.last_state = status
+                user.last_ts    = datetime.now()
+                user.save_state()
+            return utils.PingResult(changed, msg)
+        else:
+            host = user.ip_address[:port_pos]
+            port = user.ip_address[port_pos+1:]
+            status = utils.check_port(host, port)
+            if user.last_state and status==user.last_state: changed = False
+            else: changed = True
+            if changed or immediately:
+                msg = get_state_msg(user, status, immediately)
+            else: msg = ""
+            if changed:
+                user.last_state = status
+                user.last_ts    = datetime.now()
+                user.save_state()
+            return utils.PingResult(changed, msg)
+    elif not user.ip_address and user.endpoint: #and user.ping_job == 'scheduled':
         status = utils.check_custom_api1(user.endpoint, user.headers)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True

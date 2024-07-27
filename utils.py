@@ -5,6 +5,7 @@ from datetime import datetime
 import pytz
 import time
 import requests as urlr
+import socket
 
 use_tz = pytz.timezone(cfg.TZ)
 
@@ -46,4 +47,16 @@ def check_custom_api1(endpoint: str, headers) -> bool:
         check = str(([x['itemData']['online'] for x in data if x['itemData']['deviceid'] == '1001f89cc4'])[0]) == 'True'
         return cfg.ALIVE if check else cfg.OFF
     except Exception as e:
-        return cfg.OFF    
+        return cfg.OFF 
+
+def check_port(host, port, timeout=2):
+    sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sck.settimeout(timeout)
+    try:
+        sck.connect((host, int(port)))
+        sck.shutdown(socket.SHUT_RDWR)
+        return cfg.ALIVE
+    except:
+        return cfg.OFF
+    finally:
+        sck.close()
