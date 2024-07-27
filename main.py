@@ -16,7 +16,7 @@ logger = logging.getLogger('mylogger')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = logging.FileHandler('errors.log')
+fh = logging.FileHandler('errors.log', encoding='utf-8')
 fh.setLevel(logging.INFO)
 
 # Create a console handler
@@ -74,8 +74,10 @@ def start(update: Update, context: CallbackContext) -> None:
     logger.info(f'User {user_id} invoked "start"')
     if user.new :
         reply_md(cfg.msg_greeting, update)
+        logger.info(f'start: User {user_id} invoked is new')
     else:
         # Recreate the jobs if saved previously
+        logger.info(f'start: User {user_id} - recreating jobs')
         if user.ping_job:
             if user_id in us.user_jobs.keys():
                 scheduler.cancel_job(us.user_jobs[user_id])
@@ -96,6 +98,7 @@ def settings(update: Update, context: CallbackContext) -> None:
     logger.info(f'User {user_id} invoked "settings"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'settings: User {user_id} unknown')
         return
     if utils.get_system() == 'windows':
         link = cfg.LOCAL_URL + user_id
@@ -110,8 +113,10 @@ def main_menu(update: Update, context: CallbackContext) -> None:
 def set_ip(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "set_ip"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'set_ip: User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_ip()
@@ -121,8 +126,10 @@ def set_ip(update: Update, context: CallbackContext) -> None:
 def set_label(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "set_label"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_label()
@@ -132,8 +139,10 @@ def set_label(update: Update, context: CallbackContext) -> None:
 def set_channel(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "set_channel"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     user.toggle_awaiting_channel()
@@ -143,8 +152,10 @@ def set_channel(update: Update, context: CallbackContext) -> None:
 def yasno_schedule(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "yasno_schedule"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     msg = f'{cfg.msg_setcity}\n{verbiages.get_key_list(bos.bo_cities)}'
@@ -156,8 +167,10 @@ def yasno_schedule(update: Update, context: CallbackContext) -> None:
 def get_tom_schedule(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "get_tom_schedule"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     msg = verbiages.get_notificatiom_tomorrow_schedule(bos.get_windows_for_tomorrow(user))
@@ -167,8 +180,10 @@ def get_tom_schedule(update: Update, context: CallbackContext) -> None:
 def reminder(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} invoked "reminder"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.warning(f'User {user_id} unknown')
         return
     user = us.User(user_id, chat_id)
     if not user.to_remind and not user.has_schedule:
@@ -187,16 +202,19 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         user_id = str(update.message.from_user.id)
         chat_id = update.message.chat_id
     except Exception as e:
+        logger.error(f'Error processing handle_input: {e.with_traceback()}')
         return
-    
+    logger.info(f'User {user_id} entered "{update.message.text}"')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
+        logger.info(f'User {user_id} - "{cfg.msg_error}"')
         return
     user = us.User(user_id, chat_id)
     if user.awaiting_ip:
         user.toggle_nowait()
         if update.message.text[:15] == '-' and user.ip_address:
             update.message.reply_text('ІР адресу видалено')
+            logger.info(f'User {user_id} deleted IP')
             user.ip_address = None
             user.save()
             return 
@@ -215,6 +233,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         user.toggle_nowait()
         if update.message.text[:255] == '-' and user.label:
             update.message.reply_text('Назву видалено')
+            logger.info(f'User {user_id} deleted label')
             user.label = None
             user.save()
             return 
@@ -229,6 +248,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
          user.toggle_nowait()
          if update.message.text[:255] == '-' and user.channel_id:
             update.message.reply_text('Канал видалено')
+            logger.info(f'User {user_id} deleted channel')
             user.channel_id = None
             user.save()
             return 
@@ -286,6 +306,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
     #update.message.reply_text(verbiages.get_settings(user_id), reply_markup=settings_menu_markup)
 
 def _start_ping(user: us.User) -> None:
+    logger.info(f'User {user.user_id} started pinging IP')
     # Stop any existing job before starting a new one
     if user.user_id in us.user_jobs.keys():
         scheduler.cancel_job(us.user_jobs[user.user_id])
@@ -297,6 +318,7 @@ def _start_ping(user: us.User) -> None:
     _ping(user.user_id, user.chat_id)
 
 def _stop_ping(user: us.User) -> None:
+    logger.info(f'User {user.user_id} stopped pinging IP')
     if user.user_id in us.user_jobs.keys():
         scheduler.cancel_job(us.user_jobs[user.user_id])
     user.ping_job = None
@@ -326,6 +348,7 @@ def ping(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(msg + "\n" + verbiages.get_settings(user_id))
 
 def _start_listen(user: us.User):
+    logger.info(f'User {user.user_id} started listener')
     # Stop any existing job before starting a new one
     if user.user_id in us.listeners.keys():
         scheduler.cancel_job(us.listeners[user.user_id])
@@ -337,6 +360,7 @@ def _start_listen(user: us.User):
     _listen(user.user_id, user.chat_id)
 
 def _stop_listen(user: us.User):
+    logger.info(f'User {user.user_id} stopped listener')
     if user.user_id in us.listeners.keys():
         scheduler.cancel_job(us.listeners[user.user_id])
     user.listener = False
@@ -374,6 +398,7 @@ def go(update: Update, context: CallbackContext) -> None:
 def stop(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
+    logger.info(f'User {user_id} stopped both ping and listener')
     if user_id not in us.user_settings.keys():
         reply_md(cfg.msg_error, update)
         return
@@ -436,15 +461,18 @@ def _ping(user_id, chat_id):
             except Exception as e:
                 #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
         if msg and user.to_channel and user.channel_id:
             try:
                 bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
             except Exception as e:
                 #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
         user.save_state()
     except Exception as e:
-        print(f"Exception in _ping\({user_id}, {chat_id}\): {e}")
+        print(f"Exception in _ping({user_id}, {chat_id}): {e}")
+        logger.error(f"Exception in _ping({user_id}, {chat_id}): {e.with_traceback()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
 
 def ping_now(update: Update, context: CallbackContext) -> None:
@@ -538,23 +566,25 @@ def _listen(user_id, chat_id):
             try:
                 bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
             except Exception as e:
-                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
         if changed and msg and user.to_channel and user.channel_id:
             try:
                 bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
             except Exception as e:
-                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
     except Exception as e:
         print(f"Exception in _listen({user_id}, {chat_id}): {e}")
+        logger.error(f"Exception in _listen({user_id}, {chat_id}): {e.with_traceback()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
 
 def _send_notifications():
     #print("Start send notifications job")
+    logger.info('Start send notifications job')
     try:
         # here all timestamp are in Kyiv TZ
-        use_tz = pytz.timezone(cfg.TZ)
+        use_tz  = pytz.timezone(cfg.TZ)
         now_ts0 = datetime.now(use_tz)
         # make tz-naive
         now_ts = datetime.strptime((now_ts0.strftime('%Y-%m-%d %H:%M:%S')), '%Y-%m-%d %H:%M:%S')
@@ -570,11 +600,13 @@ def _send_notifications():
                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
                             print(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {e.with_traceback()}')
+                            logger.error(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {e.with_traceback()}')
                     if msg and user.to_channel and user.channel_id:
                         try:
                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {e.with_traceback()}')
+                            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {e.with_traceback()}')
                     # update next_notification_ts so we'll not send again
                     user.next_notification_ts = user.next_outage_ts
                     user.save_state()
@@ -597,11 +629,13 @@ def _send_notifications():
                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+                            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
                     if msg and user.to_channel and user.channel_id:
                         try:
                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+                            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
                     # update next_notification_ts so we'll not send again
                     user.tom_notification_ts = user.tom_schedule_ts
                     user.save_state()
@@ -612,6 +646,7 @@ def _send_notifications():
                     user.save_state()
     except Exception as e:
         print(f"Exception in _send_notifications(): {e.with_traceback()}")
+        logger.error(f"Exception in _send_notifications(): {e.with_traceback()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}") 
 
 def _gather_schedules():

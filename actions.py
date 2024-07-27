@@ -33,7 +33,7 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
             user.last_ts    = datetime.now()
             user.save_state()
         return utils.PingResult(changed, msg)
-    else: utils.PingResult(False, " ")
+    else: utils.PingResult(False, "")
 
 def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
     now_ts_short = datetime.now(use_tz).strftime('%H:%M')

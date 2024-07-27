@@ -2,12 +2,34 @@ from telethon import TelegramClient, events, sync, utils
 import tele_secrets
 import config as cfg, user_settings as us
 from datetime import datetime 
+import logging
 import pytz, time
+
+# Create a logger
+logger = logging.getLogger('mylogger')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+fh = logging.FileHandler('teleclient.log')
+fh.setLevel(logging.INFO)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 use_tz = pytz.timezone(cfg.TZ)
 
 monitor = TelegramClient('monitor_session', tele_secrets.api_id, tele_secrets.api_hash)
-client = TelegramClient('bot_session', tele_secrets.api_id, tele_secrets.api_hash)
+client  = TelegramClient('bot_session', tele_secrets.api_id, tele_secrets.api_hash)
 
 monitor.start()
 
@@ -15,7 +37,7 @@ monitor.start()
 async def newMessageListener(event):
     dt = datetime.now(use_tz)
     msg = event.message
-    print(f"{dt} Monitor Event Occured")
+    logger.info(f"{dt} Monitor Event Occured")
     if 'відключен' in event.raw_text.lower():
         await monitor.forward_messages(entity='@eSvitloPingHostBotBuffer', messages=msg)
 
@@ -25,11 +47,11 @@ async def newMessageListener(event):
 async def newMessageSender(event):
     dt = datetime.now(use_tz)
     msg = event.message
-    print(f"{dt} Client Event Occured")
+    logger.info(f"{dt} Client Event Occured")
     for user_id in us.user_settings.keys():
         try:
             if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
-                print(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
+                logger.info(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
                 if str(us.user_settings[user_id]['channel_id']).startswith('-') and str(us.user_settings[user_id]['channel_id'][1:]).isnumeric():
                     await client.forward_messages(entity=int(us.user_settings[user_id]['channel_id']), messages=msg)
                     time.sleep(1)
@@ -37,10 +59,13 @@ async def newMessageSender(event):
                     await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
                     time.sleep(1)
         except Exception as e:
-            print(f"Error Occured\n{e.with_traceback()}")
+            logger.error(f"Error occured while sending\n{e.with_traceback()}")
     #ensure that messages are sent before deleting
-    time.sleep(15)
-    await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])
+    time.sleep(30)
+    try:
+        await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])
+    except Exception as e:
+            logger.error(f"Error while deleting\n{e.with_traceback()}")
 
 with client:
     client.run_until_disconnected()
