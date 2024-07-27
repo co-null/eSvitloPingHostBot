@@ -22,7 +22,7 @@ def get_blackout_schedule():
         response = urlr.get(cfg.YASNO_URL)
         tmp_schedule = None
         tmp_schedule = response.json()
-        tmp_schedule = tmp_schedule['components'][2]['schedule']
+        tmp_schedule = tmp_schedule['components'][3]['schedule']
         response.close()    
     except Exception as e:
         print(f'Exception happened in get_blackout_schedule(): {e} ')

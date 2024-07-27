@@ -67,7 +67,7 @@ def get_full_info(user: us.User) -> str:
     #info += "*Extra*:\n"
     #info += f"Ендпоінт {str(user.endpoint)}:\n"
     #info += f"Хідер {str(user.headers)}:\n"
-    return utils.get_text_safe_to_markdown(info)
+    return info
 
 def get_key_list(dictionary:dict) -> str:
     msg = ''
