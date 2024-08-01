@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify
 import pytz
 
 # Create a logger
-logger = logging.getLogger('mylogger')
+logger = logging.getLogger('eSvitlo')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
