@@ -6,7 +6,7 @@ import logging
 import pytz, time
 
 # Create a logger
-logger = logging.getLogger('mylogger')
+logger = logging.getLogger('teleclient')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
@@ -45,23 +45,26 @@ async def newMessageListener(event):
 
 @client.on(events.NewMessage(chats = ['@eSvitloPingHostBotBuffer']))
 async def newMessageSender(event):
-    dt = datetime.now(use_tz)
     msg = event.message
-    logger.info(f"{dt} Client Event Occured")
-    for user_id in us.user_settings.keys():
+    logger.info("Client Event Occured")
+    users = dict(us.user_settings)
+    for user_id in users.keys():
+        logger.info(f"Check for broadcast {user_id}")
         try:
             if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
-                logger.info(f"{dt} Send to {us.user_settings[user_id]['channel_id']}")
+                logger.info(f"{datetime.now(use_tz)} Send to {us.user_settings[user_id]['channel_id']}")
                 if str(us.user_settings[user_id]['channel_id']).startswith('-') and str(us.user_settings[user_id]['channel_id'][1:]).isnumeric():
                     await client.forward_messages(entity=int(us.user_settings[user_id]['channel_id']), messages=msg)
-                    time.sleep(1)
+                    #time.sleep(1)
                 else: 
                     await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
-                    time.sleep(1)
+                    #time.sleep(1)
         except Exception as e:
             logger.error(f"Error occured while sending\n{e.with_traceback()}")
     #ensure that messages are sent before deleting
-    time.sleep(30)
+    logger.info("All users are checked, waiting to purge the buffer")
+    time.sleep(15)
+    logger.info("Purge the buffer")
     try:
         await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])
     except Exception as e:
