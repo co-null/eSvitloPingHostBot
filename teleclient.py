@@ -2,7 +2,7 @@ from telethon import TelegramClient, events, sync, utils
 import tele_secrets
 import config as cfg, user_settings as us
 from datetime import datetime 
-import logging
+import logging, traceback
 import pytz, time
 
 # Create a logger
@@ -60,10 +60,10 @@ async def newMessageSender(event):
                     await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
                     #time.sleep(1)
         except Exception as e:
-            logger.error(f"Error occured while sending\n{e.with_traceback()}")
+            logger.error(f"Error occured while sending\n{traceback.format_exc()}")
             continue
         finally:
-            logger.error(f"(finally) error occured while sending\n{e.with_traceback()}")
+            logger.error(f"(finally) error occured while sending\n{traceback.format_exc()}")
             continue
     #ensure that messages are sent before deleting
     logger.info("All users are checked, waiting to purge the buffer")
@@ -72,7 +72,7 @@ async def newMessageSender(event):
     try:
         await client.delete_messages(entity='t.me/eSvitloPingHostBotBuffer', message_ids=[msg.id])
     except Exception as e:
-            logger.error(f"Error while deleting\n{e.with_traceback()}")
+            logger.error(f"Error while deleting\n{traceback.format_exc()}")
 
 with client:
     client.run_until_disconnected()
