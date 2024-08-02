@@ -290,7 +290,7 @@ def set_notifications():
                     user.next_outage_ts       = next_outage
                     user.next_notification_ts = get_notification_ts(next_outage)
                     user.save_state()
-            if user.has_schedule and user.to_remind and not user.tom_notification_ts:
+            if user.has_schedule and user.to_remind and user.last_ts and not user.tom_notification_ts:
                     delta = datetime.now() - user.last_ts
                     if delta.days > 0: continue
                     user.tom_schedule_ts     = now_ts.replace(hour=21, minute=5, second=0)

@@ -216,6 +216,9 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             update.message.reply_text('ІР адресу видалено')
             logger.info(f'User {user_id} deleted IP')
             user.ip_address = None
+            user.ping_job = None
+            if user.user_id in us.user_jobs.keys():
+                scheduler.cancel_job(us.user_jobs[user.user_id])
             user.save()
             return 
         elif update.message.text[:20] == '-' and not user.ip_address:
@@ -451,7 +454,12 @@ def post_to_channel(update: Update, context: CallbackContext) -> None:
 def _ping(user_id, chat_id):
     if user_id not in us.user_settings.keys():
         return
-    user   = us.User(user_id, chat_id)
+    user = us.User(user_id, chat_id)
+    if not user.ip_address and not user.endpoint:
+        user.ping_job = None
+        user.save()
+        if user.user_id in us.user_jobs.keys():
+            scheduler.cancel_job(us.user_jobs[user.user_id])
     try:
         result = actions._ping_ip(user, False)
         msg    = utils.get_text_safe_to_markdown(result.message)
