@@ -2,7 +2,7 @@ import bot_secrets, config as cfg, user_settings as us, utils, verbiages, action
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, constants
 from telegram.utils.request import Request as TRequest
-import logging
+import logging, traceback
 import schedule
 from safe_schedule import SafeScheduler, scheduler
 import time
@@ -202,7 +202,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         user_id = str(update.message.from_user.id)
         chat_id = update.message.chat_id
     except Exception as e:
-        logger.error(f'Error processing handle_input: {e.with_traceback()}')
+        logger.error(f'Error processing handle_input: {traceback.format_exc()}')
         return
     logger.info(f'User {user_id} entered "{update.message.text}"')
     if user_id not in us.user_settings.keys():
@@ -472,7 +472,7 @@ def _ping(user_id, chat_id):
         user.save_state()
     except Exception as e:
         print(f"Exception in _ping({user_id}, {chat_id}): {e}")
-        logger.error(f"Exception in _ping({user_id}, {chat_id}): {e.with_traceback()}")
+        logger.error(f"Exception in _ping({user_id}, {chat_id}): {traceback.format_exc()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
 
 def ping_now(update: Update, context: CallbackContext) -> None:
@@ -576,7 +576,7 @@ def _listen(user_id, chat_id):
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
     except Exception as e:
         print(f"Exception in _listen({user_id}, {chat_id}): {e}")
-        logger.error(f"Exception in _listen({user_id}, {chat_id}): {e.with_traceback()}")
+        logger.error(f"Exception in _listen({user_id}, {chat_id}): {traceback.format_exc()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
 
 def _send_notifications():
@@ -599,14 +599,14 @@ def _send_notifications():
                         try:
                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
-                            print(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {e.with_traceback()}')
-                            logger.error(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {e.with_traceback()}')
+                            print(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {traceback.format_exc()}')
+                            logger.error(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {traceback.format_exc()}')
                     if msg and user.to_channel and user.channel_id:
                         try:
                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
                         except Exception as e:
-                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {e.with_traceback()}')
-                            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {e.with_traceback()}')
+                            print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {traceback.format_exc()}')
+                            logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {traceback.format_exc()}')
                     # update next_notification_ts so we'll not send again
                     user.next_notification_ts = user.next_outage_ts
                     user.save_state()
@@ -645,8 +645,8 @@ def _send_notifications():
                     user.tom_schedule_ts     = None
                     user.save_state()
     except Exception as e:
-        print(f"Exception in _send_notifications(): {e.with_traceback()}")
-        logger.error(f"Exception in _send_notifications(): {e.with_traceback()}")
+        print(f"Exception in _send_notifications(): {traceback.format_exc()}")
+        logger.error(f"Exception in _send_notifications(): {traceback.format_exc()}")
         return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}") 
 
 def _gather_schedules():
