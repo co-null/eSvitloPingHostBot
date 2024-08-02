@@ -61,6 +61,10 @@ async def newMessageSender(event):
                     #time.sleep(1)
         except Exception as e:
             logger.error(f"Error occured while sending\n{e.with_traceback()}")
+            continue
+        finally:
+            logger.error(f"(finally) error occured while sending\n{e.with_traceback()}")
+            continue
     #ensure that messages are sent before deleting
     logger.info("All users are checked, waiting to purge the buffer")
     time.sleep(15)
