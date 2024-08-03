@@ -53,17 +53,16 @@ async def newMessageSender(event):
         try:
             if us.user_settings[user_id]['to_channel'] and us.user_settings[user_id]['channel_id']:
                 logger.info(f"{datetime.now(use_tz)} Send to {us.user_settings[user_id]['channel_id']}")
-                if str(us.user_settings[user_id]['channel_id']).startswith('-') and str(us.user_settings[user_id]['channel_id'][1:]).isnumeric():
+                if str(us.user_settings[user_id]['channel_id']).startswith('-') and str(us.user_settings[user_id]['channel_id'])[1:].isnumeric():
                     await client.forward_messages(entity=int(us.user_settings[user_id]['channel_id']), messages=msg)
                     #time.sleep(1)
                 else: 
                     await client.forward_messages(entity=us.user_settings[user_id]['channel_id'], messages=msg)
                     #time.sleep(1)
+            else:
+                logger.info(f"Nowhere to sent for {user_id}")
         except Exception as e:
             logger.error(f"Error occured while sending\n{traceback.format_exc()}")
-            continue
-        finally:
-            logger.error(f"(finally) error occured while sending\n{traceback.format_exc()}")
             continue
     #ensure that messages are sent before deleting
     logger.info("All users are checked, waiting to purge the buffer")

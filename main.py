@@ -2,21 +2,19 @@ import bot_secrets, config as cfg, user_settings as us, utils, verbiages, action
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, constants
 from telegram.utils.request import Request as TRequest
-import logging, traceback
-import schedule
+import logging, traceback, schedule, time, threading, pytz, json
+from logging.handlers import TimedRotatingFileHandler
 from safe_schedule import SafeScheduler, scheduler
-import time
-import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
-import pytz
 
 # Create a logger
-logger = logging.getLogger('eSvitlo')
+logger = logging.getLogger('eSvitlo-main')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = logging.FileHandler('errors.log', encoding='utf-8')
+#fh = logging.FileHandler('errors.log', encoding='utf-8')
+fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
 # Create a console handler
@@ -62,6 +60,9 @@ settings_menu_keyboard = [[KeyboardButton('Вказати IP'),
 
 main_menu_markup     = ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True)
 settings_menu_markup = ReplyKeyboardMarkup(settings_menu_keyboard, resize_keyboard=True)
+
+#Global vars
+sys_commands = {}
 
 def reply_md(message:str, update: Update, reply_markup = None) -> None:
     message = utils.get_text_safe_to_markdown(message)
@@ -198,6 +199,7 @@ def reminder(update: Update, context: CallbackContext) -> None:
     user.save()
 
 def handle_input(update: Update, context: CallbackContext) -> None:
+    global sys_commands
     try:
         user_id = str(update.message.from_user.id)
         chat_id = update.message.chat_id
@@ -259,6 +261,10 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             update.message.reply_text('Скасовано')
             user.save()
             return
+         elif ' ' in update.message.text:
+            update.message.reply_text('Некоректний ввод')
+            user.save()
+            return
          else:
             channel_id = update.message.text[:255]
             if channel_id.startswith('https://t.me/'): channel_id = channel_id.replace('https://t.me/', '')
@@ -304,6 +310,31 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             user.has_schedule = True
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
+    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_get_user', False) and str(user.chat_id) == bot_secrets.ADMIN_ID:
+            user = us.User(update.message.text, update.message.text)
+            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
+            sys_commands[chat_id]['ask_get_user'] = False
+    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_set_user_param', False):
+            cmd = json.loads(update.message.text)
+            user_in = str(utils.get_key_safe(cmd, 'user', user.chat_id))
+            if not str(user.chat_id) == bot_secrets.ADMIN_ID and user_in != user.chat_id:
+                update.message.reply_text('Некоректний ввод')
+            param_in = str(utils.get_key_safe(cmd, 'param', None))
+            if not param_in:
+                update.message.reply_text('Некоректний ввод')
+            value_in = utils.get_key_safe(cmd, 'value', None)
+            if not value_in:
+                update.message.reply_text('Некоректний ввод')
+            user = us.User(user_in, user_in)
+            code = f"user.{param_in} = '{value_in}'"
+            exec(code)
+            #if param_in in us.user_settings[user_in].keys():
+            #    us.user_settings[user_in][param_in] = value_in
+            #if param_in in us.user_states[user_in].keys():
+            #    us.user_states[user_in][str(param_in)] = value_in
+            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
+            sys_commands[chat_id]['ask_set_user_param'] = False
+            user.save()
     else: return
     user.save()
     #update.message.reply_text(verbiages.get_settings(user_id), reply_markup=settings_menu_markup)
@@ -479,9 +510,9 @@ def _ping(user_id, chat_id):
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
         user.save_state()
     except Exception as e:
-        print(f"Exception in _ping({user_id}, {chat_id}): {e}")
         logger.error(f"Exception in _ping({user_id}, {chat_id}): {traceback.format_exc()}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
+        bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
+        return 
 
 def ping_now(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
@@ -583,13 +614,13 @@ def _listen(user_id, chat_id):
                 print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
     except Exception as e:
-        print(f"Exception in _listen({user_id}, {chat_id}): {e}")
         logger.error(f"Exception in _listen({user_id}, {chat_id}): {traceback.format_exc()}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
+        bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {e}", parse_mode=PARSE_MODE)
+        return 
 
 def _send_notifications():
     #print("Start send notifications job")
-    logger.info('Start send notifications job')
+    #logger.info('Start send notifications job')
     try:
         # here all timestamp are in Kyiv TZ
         use_tz  = pytz.timezone(cfg.TZ)
@@ -695,6 +726,25 @@ def get_users(update: Update, context: CallbackContext) -> None:
             user = us.User(user_id, us.user_settings[user_id]['chat_id'])
             bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
 
+def get_user(update: Update, context: CallbackContext) -> None:
+    global sys_commands
+    chat_id = update.message.chat_id
+    if str(chat_id) == bot_secrets.ADMIN_ID:
+        sys_commands[chat_id] = {}
+        sys_commands[chat_id]['ask_get_user'] = True
+        update.message.reply_text('Введіть ІД користувача:')
+
+def get_user_params(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)')
+
+def set_user_param(update: Update, context: CallbackContext) -> None:
+    global sys_commands
+    chat_id = update.message.chat_id
+    if str(chat_id) == bot_secrets.ADMIN_ID:
+        sys_commands[chat_id] = {}
+        sys_commands[chat_id]['ask_set_user_param'] = True
+        update.message.reply_text('Введіть команду:')
+
 # Up jobs if were saved
 for user_id in us.user_settings.keys():
     chat_id = us.user_settings[user_id]['chat_id']
@@ -734,6 +784,9 @@ dispatcher.add_handler(CommandHandler("posttochannel", post_to_channel))
 dispatcher.add_handler(CommandHandler("gettomschedule", get_tom_schedule))
 dispatcher.add_handler(CommandHandler("getscheduledjobs", get_scheduled_jobs))
 dispatcher.add_handler(CommandHandler("getusers", get_users))
+dispatcher.add_handler(CommandHandler("getuser", get_user))
+dispatcher.add_handler(CommandHandler("setuserparam", set_user_param))
+dispatcher.add_handler(CommandHandler("getuserparams", get_user_params))
 
 dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), lambda update, context: go(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))

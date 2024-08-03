@@ -4,7 +4,29 @@ import verbiages
 import user_settings as us
 import blackout_schedule as bos
 from datetime import datetime
-import pytz
+import pytz, logging, traceback
+from logging.handlers import TimedRotatingFileHandler
+
+# Create a logger
+logger = logging.getLogger('eSvitlo-actions')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh.setLevel(logging.INFO)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 use_tz = pytz.timezone(cfg.TZ)
 
@@ -24,11 +46,13 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
                 user.save_state()
             return utils.PingResult(changed, msg)
         else:
+            logger.info(f'Pinging: User {user.user_id} - {user.ip_address}')
             host = user.ip_address[:port_pos]
             port = user.ip_address[port_pos+1:]
             status = utils.check_port(host, port)
             if user.last_state and status==user.last_state: changed = False
             else: changed = True
+            logger.info(f'Pinging: User {user.user_id} - status: {status}, changed:{changed}')
             if changed or immediately:
                 msg = get_state_msg(user, status, immediately)
             else: msg = ""
