@@ -1,11 +1,29 @@
 import config as cfg
-import platform
-import subprocess
+import platform, subprocess, pytz, time, socket, logging, traceback
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
-import pytz
-import time
 import requests as urlr
-import socket
+
+# Create a logger
+logger = logging.getLogger('eSvitlo-utils')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh.setLevel(logging.INFO)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 use_tz = pytz.timezone(cfg.TZ)
 
