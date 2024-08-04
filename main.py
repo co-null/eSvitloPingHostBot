@@ -600,6 +600,7 @@ def _listen(user_id, chat_id):
             msg = utils.get_text_safe_to_markdown(msg)
             user.last_ts    = max(user.last_heared_ts, user.last_ts)
             user.last_state = status
+            logger.info(f'Heared: User {user.user_id} - status: {status}, changed:{changed}')
         user.save_state()
         if changed and msg and user.to_bot: 
             try:
