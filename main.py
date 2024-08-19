@@ -746,7 +746,7 @@ def get_user(update: Update, context: CallbackContext) -> None:
         sys_commands[chat_id]['ask_get_user'] = True
         update.message.reply_text('Введіть ІД користувача:')
     else:
-        user = us.User(chat_id, chat_id)
+        user = us.User(str(chat_id), str(chat_id))
         bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
 
 def get_user_params(update: Update, context: CallbackContext) -> None:
