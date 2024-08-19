@@ -61,10 +61,11 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
                 user.last_ts    = datetime.now()
                 user.save_state()
             return utils.PingResult(changed, msg)
-    elif not user.ip_address and user.endpoint: #and user.ping_job == 'scheduled':
+    elif not user.ip_address and user.endpoint:
         status = utils.check_custom_api1(user.endpoint, user.headers)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True
+        logger.info(f'API call: User {user.user_id} - status: {status}, changed:{changed}')
         if changed or immediately:
             msg = get_state_msg(user, status, immediately)
         else: msg = ""
