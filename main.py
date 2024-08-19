@@ -231,8 +231,10 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             user.ip_address = update.message.text[:20]
         if not user.label or user.label == '':
             user.toggle_awaiting_label()
+            logger.info(f'User {user_id} specified {user.ip_address} as IP')
             update.message.reply_text(f'Вказано IP адресу {user.ip_address}. Тепер вкажіть, будь-ласка, назву:')
         else:
+            logger.info(f'User {user_id} specified {user.ip_address} as IP')
             reply_md(f'Вказано IP адресу {user.ip_address}', update)
     elif user.awaiting_label:
         user.toggle_nowait()
@@ -248,6 +250,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             return
         else:
             user.label = update.message.text[:255]
+            logger.info(f'User {user_id} specified label "{user.label}"')
             update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг (пінг)')
     elif user.awaiting_channel:
          user.toggle_nowait()
@@ -270,6 +273,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             if channel_id.startswith('https://t.me/'): channel_id = channel_id.replace('https://t.me/', '')
             if not channel_id.startswith('@') and not channel_id[1:].isnumeric(): channel_id = '@' + channel_id
             user.channel_id = channel_id
+            logger.info(f'User {user_id} specified channel "{user.channel_id}"')
             update.message.reply_text(f'Налаштовано публікацію в канал {channel_id}')
     elif user.awaiting_city:
         user.toggle_nowait()
@@ -289,6 +293,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                 user.save()
                 return            
             user.toggle_awaiting_group()
+            logger.info(f'User {user_id} specified city "{user.city}"')
             update.message.reply_text(f'Вказано {user.city}. {cfg.msg_setgroup}')
     elif user.awaiting_group:
         user.toggle_nowait()
@@ -308,6 +313,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                 user.save()
                 return            
             user.has_schedule = True
+            logger.info(f'User {user_id} specified group "{user.group}"')
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
     elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_get_user', False) and str(user.chat_id) == bot_secrets.ADMIN_ID:
@@ -328,13 +334,10 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             user = us.User(user_in, user_in)
             code = f"user.{param_in} = '{value_in}'"
             exec(code)
-            #if param_in in us.user_settings[user_in].keys():
-            #    us.user_settings[user_in][param_in] = value_in
-            #if param_in in us.user_states[user_in].keys():
-            #    us.user_states[user_in][str(param_in)] = value_in
-            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
             sys_commands[chat_id]['ask_set_user_param'] = False
+            logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
             user.save()
+            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))  
     else: return
     user.save()
     #update.message.reply_text(verbiages.get_settings(user_id), reply_markup=settings_menu_markup)
@@ -600,6 +603,7 @@ def _listen(user_id, chat_id):
             msg = utils.get_text_safe_to_markdown(msg)
             user.last_ts    = max(user.last_heared_ts, user.last_ts)
             user.last_state = status
+            logger.info(f'Heared: User {user.user_id} - status: {status}, changed:{changed}')
         user.save_state()
         if changed and msg and user.to_bot: 
             try:

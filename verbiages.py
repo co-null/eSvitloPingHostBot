@@ -64,9 +64,10 @@ def get_full_info(user: us.User) -> str:
     info += f"Стан: {user.last_state}\n"
     info += f"Остання зміна стану (UTC): {user.last_ts}\n"
     info += f"Останній виклик слухача (UTC): {user.last_heared_ts}\n"
-    #info += "*Extra*:\n"
-    #info += f"Ендпоінт {str(user.endpoint)}:\n"
-    #info += f"Хідер {str(user.headers)}:\n"
+    if user.endpoint or user.headers:
+        info += "*Extra*:\n"
+        info += f"Ендпоінт {str(user.endpoint)}:\n"
+        info += f"Хідер {str(user.headers)}:\n"
     return info
 
 def get_key_list(dictionary:dict) -> str:
