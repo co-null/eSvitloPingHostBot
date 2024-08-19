@@ -745,6 +745,9 @@ def get_user(update: Update, context: CallbackContext) -> None:
         sys_commands[chat_id] = {}
         sys_commands[chat_id]['ask_get_user'] = True
         update.message.reply_text('Введіть ІД користувача:')
+    else:
+        user = us.User(chat_id, chat_id)
+        bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
 
 def get_user_params(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)')
