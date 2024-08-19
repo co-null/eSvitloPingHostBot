@@ -328,15 +328,18 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             param_in = str(utils.get_key_safe(cmd, 'param', None))
             if not param_in:
                 update.message.reply_text('Некоректний ввод')
-            value_in = utils.get_key_safe(cmd, 'value', None)
-            if not value_in:
-                update.message.reply_text('Некоректний ввод')
-            user = us.User(user_in, user_in)
             try:
+                if param_in == 'last_ts' or param_in == 'last_heared_ts' or param_in == 'next_notification_ts' or param_in == 'next_outage_ts'or param_in == 'tom_notification_ts'or param_in == 'tom_schedule_ts':
+                    value_in = datetime.strptime(utils.get_key_safe(cmd, 'value', None), '%Y-%m-%d %H:%M:%S')
+                else:
+                    value_in = utils.get_key_safe(cmd, 'value', None)
+                if not value_in:
+                    update.message.reply_text('Некоректний ввод')
+                user = us.User(user_in, user_in)
                 code = f"user.{param_in} = '{value_in}'"
                 exec(code)
             except Exception as e:
-                logger.error(f'User {user_id} tryid to perform "{code}" and got {e}')
+                logger.error(f'User {user_id} tried to perform "{code}" and got {e}')
             sys_commands[chat_id]['ask_set_user_param'] = False
             logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
             user.save()
@@ -504,15 +507,16 @@ def _ping(user_id, chat_id):
             try:
                 bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
             except Exception as e:
-                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
-                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
         if msg and user.to_channel and user.channel_id:
+            if str(user.channel_id).startswith('-') and str(user.channel_id)[1:].isnumeric():
+                logger.info(f'Sending to private channel: User {user.user_id} to channel {user.channel_id}, msg: "{msg}"')
+                channel_id:int = int(user.channel_id)
+            else: 
+                channel_id = user.channel_id
             try:
-                bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+                bot.send_message(chat_id = channel_id, text=msg, parse_mode=PARSE_MODE)
             except Exception as e:
-                #logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
-                print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
         user.save_state()
     except Exception as e:

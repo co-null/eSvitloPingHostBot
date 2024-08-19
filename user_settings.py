@@ -234,9 +234,13 @@ class User:
         _user['headers']          = self.headers
         _state = utils.get_key_safe(user_states, self.user_id, {})
         _state['last_state'] = self.last_state
+        if self.last_ts and isinstance(self.last_ts, str): 
+            self.last_ts:datetime = datetime.strptime(self.last_ts, '%Y-%m-%d %H:%M:%S')
         if self.last_ts: 
             _state['last_ts'] = self.last_ts.strftime('%Y-%m-%d %H:%M:%S')
-        if self.last_heared_ts: 
+        if self.last_heared_ts and isinstance(self.last_heared_ts, str): 
+            self.last_heared_ts:datetime = datetime.strptime(self.last_heared_ts, '%Y-%m-%d %H:%M:%S')
+        if self.last_heared_ts:
             _state['last_heared_ts'] = self.last_heared_ts.strftime('%Y-%m-%d %H:%M:%S')
         if self.next_notification_ts: 
             _state['next_notification_ts'] = self.next_notification_ts.strftime('%Y-%m-%d %H:%M:%S')
