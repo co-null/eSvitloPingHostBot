@@ -332,8 +332,11 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             if not value_in:
                 update.message.reply_text('Некоректний ввод')
             user = us.User(user_in, user_in)
-            code = f"user.{param_in} = '{value_in}'"
-            exec(code)
+            try:
+                code = f"user.{param_in} = '{value_in}'"
+                exec(code)
+            except Exception as e:
+                logger.error(f'User {user_id} tryid to perform "{code}" and got {e}')
             sys_commands[chat_id]['ask_set_user_param'] = False
             logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
             user.save()
