@@ -329,14 +329,15 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             if not param_in:
                 update.message.reply_text('Некоректний ввод')
             try:
+                user = us.User(user_in, user_in)
+                value_in = utils.get_key_safe(cmd, 'value', None)
                 if param_in == 'last_ts' or param_in == 'last_heared_ts' or param_in == 'next_notification_ts' or param_in == 'next_outage_ts'or param_in == 'tom_notification_ts'or param_in == 'tom_schedule_ts':
-                    value_in = datetime.strptime(utils.get_key_safe(cmd, 'value', None), '%Y-%m-%d %H:%M:%S')
+                    code = f"user.{param_in} = datetime.strptime('{value_in}', '%Y-%m-%d %H:%M:%S')"
                 else:
-                    value_in = utils.get_key_safe(cmd, 'value', None)
+                    code = f"user.{param_in} = '{value_in}'"
                 if not value_in:
                     update.message.reply_text('Некоректний ввод')
-                user = us.User(user_in, user_in)
-                code = f"user.{param_in} = '{value_in}'"
+                    return
                 exec(code)
             except Exception as e:
                 logger.error(f'User {user_id} tried to perform "{code}" and got {e}')
