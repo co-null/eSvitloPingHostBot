@@ -9,7 +9,7 @@ logger = logging.getLogger('eSvitlo-utils')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
 # Create a console handler
@@ -51,7 +51,7 @@ def get_ip_status(ip: str) -> str:
     return cfg.ALIVE if check_ip(ip) else cfg.OFF
 
 def get_text_safe_to_markdown(text: str)-> str:
-    return text.replace('.', '\.').replace('!', '\!').replace('=', '\=').replace('(', '\(').replace(')', '\)').replace('-', '\-').replace('{', '\{').replace('}', '\}')
+    return text.replace('.', '\.').replace('!', '\!').replace('=', '\=').replace('(', '\(').replace(')', '\)').replace('-', '\-').replace('{', '\{').replace('}', '\}').replace('_', '\_')
 
 def get_key_safe(dictionary, key, default):
     if key not in dictionary.keys(): return default

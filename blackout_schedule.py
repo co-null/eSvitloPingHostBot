@@ -2,11 +2,31 @@ import config as cfg
 import user_settings as us
 import requests as urlr
 import utils
-import os
-import json
 from datetime import datetime, timedelta
-import time
-import pytz
+import os, logging, traceback, time, pytz, json
+from logging.handlers import TimedRotatingFileHandler
+
+# Create a logger
+logger = logging.getLogger('eSvitlo-blackout-schedule')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+#fh = logging.FileHandler('errors.log', encoding='utf-8')
+fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh.setLevel(logging.INFO)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 use_tz         = pytz.timezone(cfg.TZ)
 bo_groups      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
@@ -25,7 +45,7 @@ def get_blackout_schedule():
         tmp_schedule = tmp_schedule['components'][3]['schedule']
         response.close()    
     except Exception as e:
-        print(f'Exception happened in get_blackout_schedule(): {e} ')
+        logger.error(f"Exception happened in get_blackout_schedule(): {traceback.format_exc()}")
     if tmp_schedule:
         blackout_schedule = tmp_schedule
     adjust_dtek_schedule('dtek_sofiivska_borshchagivka.json')
@@ -297,4 +317,4 @@ def set_notifications():
                     user.tom_notification_ts = now_ts.replace(hour=20, minute=45, second=0)
                     user.save_state()
         except Exception as e:
-            print(f"Exception in blackout_schedule.set_notifications(): {e}")
+            logger.error(f"Exception happened in set_notifications(): {traceback.format_exc()}")

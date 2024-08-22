@@ -12,7 +12,7 @@ logger = logging.getLogger('eSvitlo-actions')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
 # Create a console handler
@@ -52,8 +52,8 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
             status = utils.check_port(host, port)
             if user.last_state and status==user.last_state: changed = False
             else: changed = True
-            logger.info(f'Pinging: User {user.user_id} - status: {status}, changed:{changed}')
             if changed or immediately:
+                logger.info(f'Pinging: User {user.user_id} - status: {status}, changed:{changed}')
                 msg = get_state_msg(user, status, immediately)
             else: msg = ""
             if changed:
@@ -65,8 +65,8 @@ def _ping_ip(user: us.User, immediately: bool = False) -> utils.PingResult:
         status = utils.check_custom_api1(user.endpoint, user.headers)
         if user.last_state and status==user.last_state: changed = False
         else: changed = True
-        logger.info(f'API call: User {user.user_id} - status: {status}, changed:{changed}')
         if changed or immediately:
+            logger.info(f'API call: User {user.user_id} - status: {status}, changed:{changed}')
             msg = get_state_msg(user, status, immediately)
         else: msg = ""
         if changed:
@@ -86,7 +86,7 @@ def get_state_msg(user: us.User, status: str, immediately: bool = False) -> str:
             windows = bos.get_windows_analysis(bos.bo_cities[user.city], bos.bo_groups[user.group])
             add = "\n" + verbiages.get_outage_message(status, windows)
         except Exception as e:
-            print(f'Exception in get_state_msg: {e}, status={status}, windows={windows}')
+            logger.error(f'Exception in get_state_msg: {e}, status={status}, windows={windows}')
     # if last_state is not set
     if not user.last_state:
         if user.label and user.label != '':
