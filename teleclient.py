@@ -10,7 +10,7 @@ logger = logging.getLogger('teleclient')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = logging.FileHandler('teleclient.log')
+fh = logging.FileHandler('./logs/teleclient.log')
 fh.setLevel(logging.INFO)
 
 # Create a console handler

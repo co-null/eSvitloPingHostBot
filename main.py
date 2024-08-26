@@ -14,7 +14,7 @@ logger.setLevel(logging.DEBUG)
 
 # Create a file handler
 #fh = logging.FileHandler('errors.log', encoding='utf-8')
-fh = TimedRotatingFileHandler('esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
 # Create a console handler
@@ -42,9 +42,10 @@ dispatcher  = updater.dispatcher
 
 # Define the main menu keyboard
 main_menu_keyboard = [[KeyboardButton('Отримати статус негайно')], 
-                      [KeyboardButton('Старт моніторингу'),
-                       KeyboardButton('Зупинка моніторингу')],
-                       [KeyboardButton('Налаштування')]]
+                      [KeyboardButton('Старт'),
+                       KeyboardButton('Стоп')],
+                      [KeyboardButton('Налаштування'),
+                       KeyboardButton('?')]]
 
 # Define the settings menu
 settings_menu_keyboard = [[KeyboardButton('Вказати IP'), 
@@ -52,7 +53,7 @@ settings_menu_keyboard = [[KeyboardButton('Вказати IP'),
                           KeyboardButton('Вказати канал')], 
                           [KeyboardButton('-> в бот (так/ні)'), 
                           KeyboardButton('-> в канал (так/ні)')], 
-                          [KeyboardButton('Пінгувати (так/ні)'),
+                          [KeyboardButton('Пінг (так/ні)'),
                            KeyboardButton('Слухати (так/ні)'),
                            KeyboardButton('Графік'), 
                            KeyboardButton('Нагадати')],
@@ -82,7 +83,10 @@ def start(update: Update, context: CallbackContext) -> None:
         if user.ping_job:
             if user_id in us.user_jobs.keys():
                 scheduler.cancel_job(us.user_jobs[user_id])
-            us.user_jobs[user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+            if user.ip_address and not user.endpoint:
+                us.user_jobs[user.user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+            elif user.endpoint:
+                us.user_jobs[user.user_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
         if user.listener:
             if user_id in us.listeners.keys():
                 scheduler.cancel_job(us.listeners[user_id])
@@ -104,7 +108,7 @@ def settings(update: Update, context: CallbackContext) -> None:
     if utils.get_system() == 'windows':
         link = cfg.LOCAL_URL + user_id
     else: link = cfg.LISTENER_URL + user_id
-    link = f"Для налаштування слухача робіть виклики на {link}"
+    link = f"*Для налаштування слухача робіть виклики* на {link}"
     update.message.reply_text(verbiages.get_settings(user_id) + "\n" + link, 
                               reply_markup=settings_menu_markup)
 
@@ -251,7 +255,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         else:
             user.label = update.message.text[:255]
             logger.info(f'User {user_id} specified label "{user.label}"')
-            update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг (пінг)')
+            update.message.reply_text(f'Назву оновлено на {user.label}. Тепер можна активізувати моніторинг')
     elif user.awaiting_channel:
          user.toggle_nowait()
          if update.message.text[:255] == '-' and user.channel_id:
@@ -265,7 +269,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             user.save()
             return
          elif ' ' in update.message.text:
-            update.message.reply_text('Некоректний ввод')
+            reply_md(cfg.msg_badinput, update, main_menu_markup)
             user.save()
             return
          else:
@@ -289,7 +293,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                 if entered == city:
                     user.city = entered
             if not user.city: 
-                update.message.reply_text('Некоректний ввод')
+                reply_md(cfg.msg_badinput, update, main_menu_markup)
                 user.save()
                 return            
             user.toggle_awaiting_group()
@@ -309,7 +313,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
                 if entered == str(group):
                     user.group = group
             if not user.group: 
-                update.message.reply_text('Некоректний ввод')
+                reply_md(cfg.msg_badinput, update, main_menu_markup)
                 user.save()
                 return            
             user.has_schedule = True
@@ -317,37 +321,56 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
     elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_get_user', False) and str(user.chat_id) == bot_secrets.ADMIN_ID:
-            user = us.User(update.message.text, update.message.text)
-            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
-            sys_commands[chat_id]['ask_get_user'] = False
+        user = us.User(update.message.text, update.message.text)
+        bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
+        sys_commands[chat_id]['ask_get_user'] = False
     elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_set_user_param', False):
-            cmd = json.loads(update.message.text)
-            user_in = str(utils.get_key_safe(cmd, 'user', user.chat_id))
-            if not str(user.chat_id) == bot_secrets.ADMIN_ID and user_in != user.chat_id:
-                update.message.reply_text('Некоректний ввод')
-            param_in = str(utils.get_key_safe(cmd, 'param', None))
-            if not param_in:
-                update.message.reply_text('Некоректний ввод')
+        cmd = json.loads(update.message.text)
+        user_in = str(utils.get_key_safe(cmd, 'user', user.chat_id))
+        if not str(user.chat_id) == bot_secrets.ADMIN_ID and user_in != user.chat_id:
+            reply_md(cfg.msg_badinput, update, main_menu_markup)
+        param_in = str(utils.get_key_safe(cmd, 'param', None))
+        if not param_in:
+            reply_md(cfg.msg_badinput, update, main_menu_markup)
+        try:
+            user = us.User(user_in, user_in)
+            value_in = utils.get_key_safe(cmd, 'value', None)
+            if param_in == 'last_ts' or param_in == 'last_heared_ts' or param_in == 'next_notification_ts' or param_in == 'next_outage_ts'or param_in == 'tom_notification_ts'or param_in == 'tom_schedule_ts':
+                code = f"user.{param_in} = datetime.strptime('{value_in}', '%Y-%m-%d %H:%M:%S')"
+            else:
+                code = f"user.{param_in} = '{value_in}'"
+            if not value_in:
+                reply_md(cfg.msg_badinput, update, main_menu_markup)
+                return
+            exec(code)
+        except Exception as e:
+            logger.error(f'User {user_id} tried to perform "{code}" and got {e}')
+        sys_commands[chat_id]['ask_set_user_param'] = False
+        logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
+        user.save()
+        bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user)) 
+    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_help', False):
+        help_point = update.message.text
+        help_msg = utils.get_key_safe(cfg.msg_help, help_point, '')
+        sys_commands[chat_id]['ask_help'] = False
+        if help_msg == '':
+            reply_md(cfg.msg_badinput, update, main_menu_markup)
+            return
+        reply_md(help_msg, update, main_menu_markup)
+    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_broadcast', False):
+        msg = update.message.text
+        sys_commands[chat_id]['ask_broadcast'] = False
+        if msg == '':
+            reply_md(cfg.msg_badinput, update, main_menu_markup)
+            return
+        for user_id in us.user_settings.keys():
             try:
-                user = us.User(user_in, user_in)
-                value_in = utils.get_key_safe(cmd, 'value', None)
-                if param_in == 'last_ts' or param_in == 'last_heared_ts' or param_in == 'next_notification_ts' or param_in == 'next_outage_ts'or param_in == 'tom_notification_ts'or param_in == 'tom_schedule_ts':
-                    code = f"user.{param_in} = datetime.strptime('{value_in}', '%Y-%m-%d %H:%M:%S')"
-                else:
-                    code = f"user.{param_in} = '{value_in}'"
-                if not value_in:
-                    update.message.reply_text('Некоректний ввод')
-                    return
-                exec(code)
-            except Exception as e:
-                logger.error(f'User {user_id} tried to perform "{code}" and got {e}')
-            sys_commands[chat_id]['ask_set_user_param'] = False
-            logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
-            user.save()
-            bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))  
+                bot.send_message(chat_id=user_id, text=msg) 
+            except:
+                logger.error(f"Error occured while sending\n{traceback.format_exc()}")
+                continue
     else: return
     user.save()
-    #update.message.reply_text(verbiages.get_settings(user_id), reply_markup=settings_menu_markup)
 
 def _start_ping(user: us.User) -> None:
     logger.info(f'User {user.user_id} started pinging IP')
@@ -355,7 +378,10 @@ def _start_ping(user: us.User) -> None:
     if user.user_id in us.user_jobs.keys():
         scheduler.cancel_job(us.user_jobs[user.user_id])
     # Schedule the ping job every min
-    us.user_jobs[user.user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+    if user.ip_address and not user.endpoint:
+        us.user_jobs[user.user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+    elif user.endpoint:
+        us.user_jobs[user.user_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
     user.ping_job = 'scheduled'
     user.save()
     # Initial ping immediately
@@ -558,7 +584,7 @@ def ping_now(update: Update, context: CallbackContext) -> None:
         result = utils.PingResult(False, msg)
     if result.message: 
         bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
-    if msg and result.changed and user.channel_id:
+    if msg and result.changed and user.to_channel and user.channel_id:
         bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
 
 def _heard(user_id: str) -> None:
@@ -718,7 +744,6 @@ def _notification_schedules():
     # Schedule send_notification job every min
     bos.shedulers['send_notification'] = scheduler.every(cfg.SCHEDULE_SEND_NOTIFICATION).minutes.do(_send_notifications)
 
-
 def schedule_pings():
     while True:
         scheduler.run_pending()
@@ -750,15 +775,32 @@ def get_user(update: Update, context: CallbackContext) -> None:
         bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
 
 def get_user_params(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)')
+    update.message.reply_text(cfg.msg_listparams)
 
 def set_user_param(update: Update, context: CallbackContext) -> None:
     global sys_commands
     chat_id = update.message.chat_id
+    sys_commands[chat_id] = {}
+    sys_commands[chat_id]['ask_set_user_param'] = True
+    update.message.reply_text('Введіть команду:')
+
+def broadcast(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
     if str(chat_id) == bot_secrets.ADMIN_ID:
         sys_commands[chat_id] = {}
-        sys_commands[chat_id]['ask_set_user_param'] = True
-        update.message.reply_text('Введіть команду:')
+        sys_commands[chat_id]['ask_broadcast'] = True
+        update.message.reply_text('Введіть повідомлення для розсилки:')
+
+def help(update: Update, context: CallbackContext) -> None:
+    global sys_commands
+    chat_id = update.message.chat_id
+    sys_commands[chat_id] = {}
+    sys_commands[chat_id]['ask_help'] = True
+    reply_md(cfg.msg_helplist, update)
+    update.message.reply_text('Введіть пункт довідки:')
+
+# Load user settings to DB
+us.sync_user_settings()
 
 # Up jobs if were saved
 for user_id in us.user_settings.keys():
@@ -768,7 +810,10 @@ for user_id in us.user_settings.keys():
         if user.ping_job:
             if user_id in us.user_jobs.keys():
                 scheduler.cancel_job(us.user_jobs[user_id])
-            us.user_jobs[user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user_id, chat_id=chat_id)
+            if user.ip_address and not user.endpoint:
+                us.user_jobs[user.user_id] = scheduler.every(cfg.SCHEDULE_PING).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
+            elif user.endpoint:
+                us.user_jobs[user.user_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).minutes.do(_ping, user_id=user.user_id, chat_id=user.chat_id)
         if user.listener:
             if user_id in us.listeners.keys():
                 scheduler.cancel_job(us.listeners[user_id])
@@ -802,12 +847,14 @@ dispatcher.add_handler(CommandHandler("getusers", get_users))
 dispatcher.add_handler(CommandHandler("getuser", get_user))
 dispatcher.add_handler(CommandHandler("setuserparam", set_user_param))
 dispatcher.add_handler(CommandHandler("getuserparams", get_user_params))
+dispatcher.add_handler(CommandHandler("broadcast", broadcast))
+dispatcher.add_handler(CommandHandler("help", help))
 
-dispatcher.add_handler(MessageHandler(Filters.regex('^Старт моніторингу$'), lambda update, context: go(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Старт$'), lambda update, context: go(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Отримати статус негайно$'), ping_now))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Налаштування$'), settings))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Головне меню$'), main_menu))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Зупинка моніторингу$'), stop))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Стоп$'), stop))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати IP$'), set_ip))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати назву$'), set_label))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Вказати канал$'), set_channel))
@@ -815,8 +862,9 @@ dispatcher.add_handler(MessageHandler(Filters.regex('^Графік$'), yasno_sch
 dispatcher.add_handler(MessageHandler(Filters.regex('^Нагадати$'), reminder))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в канал \(так/ні\)$'), lambda update, context: post_to_channel(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^-> в бот \(так/ні\)$'), lambda update, context: post_to_bot(update, context)))
-dispatcher.add_handler(MessageHandler(Filters.regex('^Пінгувати \(так/ні\)$'), lambda update, context: ping(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^Пінг \(так/ні\)$'), lambda update, context: ping(update, context)))
 dispatcher.add_handler(MessageHandler(Filters.regex('^Слухати \(так/ні\)$'), lambda update, context: listen(update, context)))
+dispatcher.add_handler(MessageHandler(Filters.regex('^\?$'), help))
 dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_input))
 
 # Start the scheduler thread
