@@ -3,6 +3,7 @@ import tele_secrets
 import config as cfg, user_settings as us
 from datetime import datetime 
 import logging, traceback
+from logging.handlers import TimedRotatingFileHandler
 import pytz, time
 
 # Create a logger
@@ -10,7 +11,7 @@ logger = logging.getLogger('teleclient')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-fh = logging.FileHandler('./logs/teleclient.log')
+fh = TimedRotatingFileHandler('./logs/teleclient.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
 # Create a console handler

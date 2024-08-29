@@ -69,6 +69,9 @@ def reply_md(message:str, update: Update, reply_markup = None) -> None:
     message = utils.get_text_safe_to_markdown(message)
     update.message.reply_text(message, reply_markup=reply_markup, parse_mode=PARSE_MODE)
 
+def get_syscommand(chat_id:str, cmd_type:str) -> bool:
+    return utils.get_key_safe(utils.get_key_safe(sys_commands, chat_id, {}), cmd_type, False)
+
 def start(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     chat_id = update.message.chat_id
@@ -320,18 +323,21 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             logger.info(f'User {user_id} specified group "{user.group}"')
             update.message.reply_text(f'Вказано {user.city}: Група {user.group}')
             _gather_schedules()
-    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_get_user', False) and str(user.chat_id) == bot_secrets.ADMIN_ID:
+    elif get_syscommand(user.chat_id, 'ask_get_user') and str(user.chat_id) == bot_secrets.ADMIN_ID:
         user = us.User(update.message.text, update.message.text)
         bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user))
         sys_commands[chat_id]['ask_get_user'] = False
-    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_set_user_param', False):
+    elif get_syscommand(user.chat_id, 'ask_set_user_param'):
+        sys_commands[chat_id]['ask_set_user_param'] = False
         cmd = json.loads(update.message.text)
         user_in = str(utils.get_key_safe(cmd, 'user', user.chat_id))
-        if not str(user.chat_id) == bot_secrets.ADMIN_ID and user_in != user.chat_id:
+        if not str(user.chat_id) == bot_secrets.ADMIN_ID and str(user_in) != str(user.chat_id):
             reply_md(cfg.msg_badinput, update, main_menu_markup)
+            return
         param_in = str(utils.get_key_safe(cmd, 'param', None))
         if not param_in:
             reply_md(cfg.msg_badinput, update, main_menu_markup)
+            return
         try:
             user = us.User(user_in, user_in)
             value_in = utils.get_key_safe(cmd, 'value', None)
@@ -345,11 +351,10 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             exec(code)
         except Exception as e:
             logger.error(f'User {user_id} tried to perform "{code}" and got {e}')
-        sys_commands[chat_id]['ask_set_user_param'] = False
         logger.info(f'User {user_id} specified param {param_in} for {user.user_id} as "{value_in}"')
         user.save()
         bot.send_message(chat_id=chat_id, text=verbiages.get_full_info(user)) 
-    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_help', False):
+    elif get_syscommand(user.chat_id, 'ask_help'):
         help_point = update.message.text
         help_msg = utils.get_key_safe(cfg.msg_help, help_point, '')
         sys_commands[chat_id]['ask_help'] = False
@@ -357,7 +362,7 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             reply_md(cfg.msg_badinput, update, main_menu_markup)
             return
         reply_md(help_msg, update, main_menu_markup)
-    elif utils.get_key_safe(utils.get_key_safe(sys_commands, user.chat_id, {}),'ask_broadcast', False):
+    elif get_syscommand(user.chat_id, 'ask_broadcast'):
         msg = update.message.text
         sys_commands[chat_id]['ask_broadcast'] = False
         if msg == '':
@@ -548,7 +553,7 @@ def _ping(user_id, chat_id):
         user.save_state()
     except Exception as e:
         logger.error(f"Exception in _ping({user_id}, {chat_id}): {traceback.format_exc()}")
-        bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping\({user_id}, {chat_id}\): {e}", parse_mode=PARSE_MODE)
+        bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _ping({user_id}, {chat_id}): {e}")
         return 
 
 def ping_now(update: Update, context: CallbackContext) -> None:
@@ -724,7 +729,6 @@ def _send_notifications():
     except Exception as e:
         print(f"Exception in _send_notifications(): {traceback.format_exc()}")
         logger.error(f"Exception in _send_notifications(): {traceback.format_exc()}")
-        return bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _send_notifications: {e}") 
 
 def _gather_schedules():
     # Stop any existing job before starting a new one

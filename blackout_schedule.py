@@ -317,4 +317,4 @@ def set_notifications():
                     user.tom_notification_ts = now_ts.replace(hour=20, minute=45, second=0)
                     user.save_state()
         except Exception as e:
-            logger.error(f"Exception happened in set_notifications(): {traceback.format_exc()}")
+            logger.error(f"Exception happened in set_notifications(): userid={user_id}, user.city={user.city}, user.group = {user.group}, exception: {traceback.format_exc()}")

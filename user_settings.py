@@ -59,6 +59,9 @@ class Userdb:
             self.__session.commit()
         self.__get_from_db()
 
+    def __del__(self):
+        SessionMain.remove()
+
     @property
     def user_id(self):
         return self.__user_id
@@ -80,6 +83,9 @@ class Userdb:
     
     def __get_user_for_update(self):
         return self.__session.query(db_user).filter_by(user_id=self.__user_id).first()
+    
+    def remove():
+        SessionMain.remove()
     
     @new.setter
     def new(self, value: bool):
@@ -180,6 +186,9 @@ class Spot:
             user_to_update.num_spots += 1
             self.__session.commit()
         self.__get_from_db()
+
+    def __del__(self):
+        SessionMain.remove()
 
     @property
     def chat_id(self):
@@ -505,18 +514,20 @@ class Spot:
     def new_state(self, value: str):
         spotstate_to_update = self.__session.query(db_spotstate).filter_by(chat_id=self.__chat_id).first()
         journal_to_update   = self.__session.query(db_spotjournal).filter_by(chat_id=self.__chat_id, active_record=1).first()
-        if spotstate_to_update.last_state and value and not spotstate_to_update.last_state == value:
-           journal_to_update.to_ts         = datetime.now(use_tz)
-           journal_to_update.active_record = 0
-           new_journal = db_spotjournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
-                                        last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
-           self.__session.add(new_journal)
-        elif value and not spotstate_to_update.last_state:
-            journal_to_update.spot_state = value
-            journal_to_update.last_ts    = datetime.now(use_tz)
-            journal_to_update.from_ts    = datetime.now(use_tz)
-        spotstate_to_update.last_state = value
         spotstate_to_update.last_ts    = datetime.now(use_tz)
+        if spotstate_to_update.last_state and value and not spotstate_to_update.last_state == value:
+           if not journal_to_update.spot_state == value:
+                journal_to_update.to_ts         = datetime.now(use_tz)
+                journal_to_update.active_record = 0
+                new_journal = db_spotjournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
+                                            last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
+                self.__session.add(new_journal)
+        elif value and not spotstate_to_update.last_state:
+            if not journal_to_update.spot_state == value:
+                journal_to_update.spot_state = value
+                journal_to_update.last_ts    = datetime.now(use_tz)
+                journal_to_update.from_ts    = datetime.now(use_tz)
+        spotstate_to_update.last_state = value
         self.__session.commit()
 
     def toggle_awaiting_ip(self):
@@ -596,6 +607,9 @@ class Notification:
             self.__session.add(new_notification)
             self.__session.commit()
         self.__get_from_db()
+
+    def __del__(self):
+        SessionMain.remove()
 
     def __get_notification_for_update(self):
         return self.__session.query(db_notification).filter_by(chat_id=self.__chat_id, notification_type=self.__notification_type).first()
