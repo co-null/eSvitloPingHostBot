@@ -929,6 +929,9 @@ def save_user_states():
         notification2 = Notification(chat_id, 'tomorrow_schedule')
         notification2.next_notification_ts=user.tom_notification_ts
         notification2.next_event_ts=user.tom_schedule_ts
+        spotdb.remove()
+        notification1.remove()
+        notification2.remove()
     with open(STATES_FILE, 'w') as file:
         json.dump(user_states, file, indent=2)
 
