@@ -326,6 +326,9 @@ class Spot:
     def __get_spot_for_update(self):
         return self.__session.query(db_spot).filter_by(chat_id=self.__chat_id).first()
     
+    def remove():
+        SessionMain.remove()
+    
     @ip_address.setter
     def ip_address(self, value: str):
         spot_to_update = self.__get_spot_for_update()
@@ -623,6 +626,9 @@ class Notification:
 
     def __get_notification_for_update(self):
         return self.__session.query(db_notification).filter_by(chat_id=self.__chat_id, notification_type=self.__notification_type).first()
+    
+    def remove():
+        SessionMain.remove()
 
     @property
     def chat_id(self):
@@ -893,6 +899,10 @@ def sync_user_settings():
         notification2 = Notification(chat_id, 'tomorrow_schedule')
         notification2.next_notification_ts=user.tom_notification_ts
         notification2.next_event_ts=user.tom_schedule_ts
+        userdb.remove()
+        spotdb.remove()
+        notification1.remove()
+        notification2.remove()
         user          = None
         userdb        = None
         spotdb        = None
