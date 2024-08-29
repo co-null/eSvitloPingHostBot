@@ -497,6 +497,9 @@ class Spot:
     def last_ts(self, value: datetime):
         spotstate_to_update = self.__session.query(db_spotstate).filter_by(chat_id=self.__chat_id).first()
         journal_to_update   = self.__session.query(db_spotjournal).filter_by(chat_id=self.__chat_id, active_record=1).first()
+        if not journal_to_update:
+            journal_to_update = db_spotjournal(chat_id=self.__chat_id, spot_state=value, last_ts=value, 
+                                               last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=value, active_record=1)
         if value and not spotstate_to_update.last_ts == value:
             journal_to_update.last_ts   = value
             spotstate_to_update.last_ts = value
@@ -506,23 +509,30 @@ class Spot:
     def last_heared_ts(self, value: datetime):
         spotstate_to_update = self.__session.query(db_spotstate).filter_by(chat_id=self.__chat_id).first()
         journal_to_update   = self.__session.query(db_spotjournal).filter_by(chat_id=self.__chat_id, active_record=1).first()
+        if not journal_to_update:
+            journal_to_update = db_spotjournal(chat_id=self.__chat_id, spot_state=spotstate_to_update.last_state, last_ts=value, 
+                                               last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=value, active_record=1)
         if value and not spotstate_to_update.last_heared_ts == value:
             journal_to_update.last_heared_ts   = value
             spotstate_to_update.last_heared_ts = value
             self.__session.commit()
 
     def new_state(self, value: str):
+        if not value: return
         spotstate_to_update = self.__session.query(db_spotstate).filter_by(chat_id=self.__chat_id).first()
         journal_to_update   = self.__session.query(db_spotjournal).filter_by(chat_id=self.__chat_id, active_record=1).first()
-        spotstate_to_update.last_ts    = datetime.now(use_tz)
-        if spotstate_to_update.last_state and value and not spotstate_to_update.last_state == value:
+        spotstate_to_update.last_ts = datetime.now(use_tz)
+        if not journal_to_update:
+            journal_to_update = db_spotjournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
+                                               last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
+        if spotstate_to_update.last_state and not spotstate_to_update.last_state == value:
            if not journal_to_update.spot_state == value:
                 journal_to_update.to_ts         = datetime.now(use_tz)
                 journal_to_update.active_record = 0
                 new_journal = db_spotjournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
                                             last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
                 self.__session.add(new_journal)
-        elif value and not spotstate_to_update.last_state:
+        elif not spotstate_to_update.last_state:
             if not journal_to_update.spot_state == value:
                 journal_to_update.spot_state = value
                 journal_to_update.last_ts    = datetime.now(use_tz)
