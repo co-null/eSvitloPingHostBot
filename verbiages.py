@@ -50,6 +50,8 @@ def _get_settings(user: us.User) -> str:
             msg += cfg.msg_reminder_on
         else: 
             msg += cfg.msg_reminder_off
+    if user.to_telegram: msg += cfg.msg_telegram_news_on
+    else: msg += cfg.msg_telegram_news_off
     return msg
 
 def get_settings(user_id: str) -> str:
