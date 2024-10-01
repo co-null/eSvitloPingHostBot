@@ -1,6 +1,6 @@
 # db/models.py
 from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import PrimaryKeyConstraint
 
@@ -39,6 +39,7 @@ class Spot(Base):
     api_details      = Column(String)
     interval         = Column(Integer, default=0)
     to_remind        = Column(Integer, default=0)
+    to_telegram      = Column(Integer, default=1)
     ts_ins           = Column(TIMESTAMP)
     ts_upd           = Column(TIMESTAMP)
 

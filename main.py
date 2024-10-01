@@ -343,6 +343,8 @@ def handle_input(update: Update, context: CallbackContext) -> None:
             value_in = utils.get_key_safe(cmd, 'value', None)
             if param_in == 'last_ts' or param_in == 'last_heared_ts' or param_in == 'next_notification_ts' or param_in == 'next_outage_ts'or param_in == 'tom_notification_ts'or param_in == 'tom_schedule_ts':
                 code = f"user.{param_in} = datetime.strptime('{value_in}', '%Y-%m-%d %H:%M:%S')"
+            elif param_in == 'listener' or param_in == 'to_bot' or param_in == 'to_channel' or param_in == 'has_schedule' or param_in == 'to_remind' or param_in == 'to_telegram':
+                code = f"user.{param_in} = {value_in}"
             else:
                 code = f"user.{param_in} = '{value_in}'"
             if not value_in:

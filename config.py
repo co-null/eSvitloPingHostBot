@@ -29,6 +29,8 @@ msg_reminder_no_schedule="Для активації нагадувань нео�
 msg_reminder_turnon="Нагадування спрацьовуватимуть приблизно за 15 хв. до планового відключення (не в сірій зоні).\nНагадування припиняють надсилатися, якщо останню добу відключень не було"
 msg_reminder_on="Нагадування ввімкнено\n"
 msg_reminder_off="Нагадування вимкнено\n"
+msg_telegram_news_on="Пересилання новин ввімкнено\n"
+msg_telegram_news_off="Пересилання новин вимкнено\n"
 msg_settings="Поточні налаштування:"
 msg_noip='IP адреса не вказана. Будь ласка, використайте "Вказати IP адресу для моніторингу"'
 msg_ippingon="Пінг IP адреси ввімкнено\n"
@@ -51,7 +53,7 @@ msg_alive="💡Електрохарчування *є*!"
 msg_blackout="🔦 Немає світла!"
 msg_badinput='Некоректний ввод'
 
-msg_listparams='Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)'
+msg_listparams='Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nto_telegram(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)'
 msg_helplist="1 - Загальні питання\n*Головне меню*:\n2 - Отримати статус негайно\n3 - Старт\n4 - Стоп\n5 - Налаштування" +\
              "\n6 - Вказати IP\n7 - Вказати назву\n8 - Вказати канал\n9 - в бот (так/ні)\n10 - в канал (так/ні)\n11 - Пінгувати(так/ні)" +\
              "\n12 - Слухати (так/ні)\n13 - Графік\n14 - Нагадати"

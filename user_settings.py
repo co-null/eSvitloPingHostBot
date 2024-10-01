@@ -84,9 +84,6 @@ class Userdb:
     def __get_user_for_update(self):
         return self.__session.query(db_user).filter_by(user_id=self.__user_id).first()
     
-    def remove():
-        SessionMain.remove()
-    
     @new.setter
     def new(self, value: bool):
         user_to_update = self.__get_user_for_update()
@@ -134,6 +131,7 @@ class Spot:
             self.__api_details      = spot_from_db.api_details 
             self.__interval         = spot_from_db.interval
             self.__to_remind        = (spot_from_db.to_remind == 1)
+            self.__to_telegram      = (spot_from_db.to_telegram == 1)
             self.__ts_ins           = spot_from_db.ts_ins
             self.__ts_upd           = spot_from_db.ts_upd
 
@@ -168,6 +166,7 @@ class Spot:
         self.__api_details:str       = None
         self.__interval:int          = None
         self.__to_remind:bool        = False
+        self.__to_telegram:bool      = True
         self.__ts_ins:datetime       = datetime.now(use_tz)
         self.__ts_upd:datetime       = datetime.now(use_tz)
         self.__last_state:str        = None
@@ -297,7 +296,12 @@ class Spot:
     def to_remind(self):
         self.__get_from_db()
         return self.__to_remind
-    
+
+    @property
+    def to_telegram(self):
+        self.__get_from_db()
+        return self.__to_telegram
+   
     @property
     def ts_ins(self):
         self.__get_from_db()
@@ -325,9 +329,6 @@ class Spot:
     
     def __get_spot_for_update(self):
         return self.__session.query(db_spot).filter_by(chat_id=self.__chat_id).first()
-    
-    def remove():
-        SessionMain.remove()
     
     @ip_address.setter
     def ip_address(self, value: str):
@@ -489,6 +490,14 @@ class Spot:
             spot_to_update.ts_upd = datetime.now(use_tz)
             self.__session.commit()
 
+    @to_telegram.setter
+    def to_telegram(self, value: bool):
+        spot_to_update = self.__get_spot_for_update()
+        if not spot_to_update.to_telegram == (1 if value else 0):
+            spot_to_update.to_telegram = (1 if value else 0)
+            spot_to_update.ts_upd = datetime.now(use_tz)
+            self.__session.commit()
+
     @last_state.setter
     def last_state(self, value: str):
         spotstate_to_update = self.__session.query(db_spotstate).filter_by(chat_id=self.__chat_id).first()
@@ -627,9 +636,6 @@ class Notification:
     def __get_notification_for_update(self):
         return self.__session.query(db_notification).filter_by(chat_id=self.__chat_id, notification_type=self.__notification_type).first()
     
-    def remove():
-        SessionMain.remove()
-
     @property
     def chat_id(self):
         return self.__chat_id
@@ -683,6 +689,7 @@ class User:
             self.city                     = None
             self.group                    = None
             self.to_remind                = False
+            self.to_telegram              = True
             self.endpoint                 = None
             self.headers                  = None
             self.last_state: str          = None
@@ -713,6 +720,7 @@ class User:
             self.city: str                = utils.get_key_safe(_user, 'city', None)
             self.group: str               = utils.get_key_safe(_user, 'group', None)
             self.to_remind: bool          = utils.get_key_safe(_user, 'to_remind', False)
+            self.to_telegram: bool        = utils.get_key_safe(_user, 'to_telegram', True)
             self.endpoint: str            = utils.get_key_safe(_user, 'endpoint', None)
             self.headers: str             = utils.get_key_safe(_user, 'headers', None)
             self.last_state: str          = utils.get_key_safe(_state, 'last_state', None)
@@ -771,6 +779,7 @@ class User:
         _user['city']             = self.city
         _user['group']            = self.group
         _user['to_remind']        = self.to_remind
+        _user['to_telegram']      = self.to_telegram
         _user['endpoint']         = self.endpoint
         _user['headers']          = self.headers
         _state = utils.get_key_safe(user_states, self.user_id, {})
@@ -888,6 +897,7 @@ def sync_user_settings():
         if spotdb.endpoint:
             spotdb.api_details='1001f89cc4'
         spotdb.to_remind=user.to_remind
+        spotdb.to_telegram=user.to_telegram
         spotdb.last_state=user.last_state
         if user.last_ts:
             spotdb.last_ts=user.last_ts + delta
@@ -899,10 +909,6 @@ def sync_user_settings():
         notification2 = Notification(chat_id, 'tomorrow_schedule')
         notification2.next_notification_ts=user.tom_notification_ts
         notification2.next_event_ts=user.tom_schedule_ts
-        #userdb.remove()
-        #spotdb.remove()
-        #notification1.remove()
-        #notification2.remove()
         user          = None
         userdb        = None
         spotdb        = None
@@ -929,9 +935,6 @@ def save_user_states():
         notification2 = Notification(chat_id, 'tomorrow_schedule')
         notification2.next_notification_ts=user.tom_notification_ts
         notification2.next_event_ts=user.tom_schedule_ts
-        #spotdb.remove()
-        #notification1.remove()
-        #notification2.remove()
     with open(STATES_FILE, 'w') as file:
         json.dump(user_states, file, indent=2)
 
