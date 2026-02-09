@@ -1,10 +1,36 @@
 import config as cfg
 import user_settings as us
+from structure.user import *
+from structure.spot import *
+#TODO Fix blackout schedule
+#from blackout_schedule import BO_GROUPS, BO_GROUPS_TEXT, BO_CITIES, get_windows_analysis
 import utils
 from datetime import datetime, timedelta
-import pytz
+import pytz, logging
+from logging.handlers import TimedRotatingFileHandler
 
-use_tz = pytz.timezone(cfg.TZ)
+# Create a logger
+logger = logging.getLogger('eSvitlo-verbiages')
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler
+fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
+fh.setLevel(logging.INFO)
+
+# Create a console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+TIMEZONE = pytz.timezone(cfg.TZ)
 
 def get_string_period(delta: timedelta) -> str:
     days    = delta.days
@@ -31,51 +57,105 @@ def get_string_period(delta: timedelta) -> str:
         hour_str = hour_str + ' '
     return days_str + hour_str + min_str
 
-def _get_settings(user: us.User) -> str:
+def _get_settings(spot: Spot) -> str:
     msg = ""
-    if user.ip_address: msg += "IP адреса: " + user.ip_address + f" ({user.label}) \n" 
+    msg += f"Назва: {spot.name}\n" 
+    if spot.ip_address: msg += f"IP адреса: {spot.ip_address}\n"
     else: msg += "IP адреса не вказана \n"
-    if user.ping_job: msg += cfg.msg_ippingon 
+    if spot.ping_job: msg += cfg.msg_ippingon 
     else: msg += cfg.msg_ippingoff
-    if user.listener: msg += cfg.msg_listeneron
+    if spot.listener: msg += cfg.msg_listeneron
     else: msg += cfg.msg_listeneroff 
-    if user.channel_id: msg += "Канал: " + str(user.channel_id) + "\n" 
-    if user.to_bot: msg += cfg.msg_boton
+    if spot.channel_id: msg += "Канал: " + str(spot.channel_id) + "\n" 
+    if spot.to_bot: msg += cfg.msg_boton
     else: msg += cfg.msg_botoff
-    if user.to_channel: msg += cfg.msg_channelon
+    if spot.to_channel: msg += cfg.msg_channelon
     else: msg += cfg.msg_channeloff
-    if user.has_schedule: 
-        msg += f'Налаштовано графік для {user.city}: Група {user.group}'+ "\n"
-        if user.to_remind:
-            msg += cfg.msg_reminder_on
-        else: 
-            msg += cfg.msg_reminder_off
-    if user.to_telegram: msg += cfg.msg_telegram_news_on
-    else: msg += cfg.msg_telegram_news_off
+    #TODO Fix blackout schedule
+    # if spot.has_schedule: 
+    #     msg += f'Налаштовано графік для {spot.city}: Група {spot.group}'+ "\n"
+    #     if spot.to_remind:
+    #         msg += cfg.msg_reminder_on
+    #     else: 
+    #         msg += cfg.msg_reminder_off
+    #if spot.to_telegram: msg += cfg.msg_telegram_news_on
+    #else: msg += cfg.msg_telegram_news_off
     return msg
 
-def get_settings(user_id: str) -> str:
-    user = us.User(user_id, us.user_settings[user_id]['chat_id'])
-    msg  = cfg.msg_settings + '\n'
-    return msg + _get_settings(user)
+def get_settings_spot(spot: Spot, order: str) -> str:
+    msg  = '*Точка ' + order + '*:\n'
+    return msg + _get_settings(spot)
 
-def get_full_info(user: us.User) -> str:
-    info = f"ІД: {user.chat_id}:\n"
-    info += _get_settings(user)
+def get_settings(user: Userdb) -> str:
+    msg  = cfg.msg_settings + '\n'
+    for i in range(0, user.num_spots):
+        if i == 0: 
+            order = '1'
+            spot = Spot(user.user_id, str(user.user_id))
+        else:
+            msg += '\n'
+            order = str(i+1)
+            spot = Spot(user.user_id, str(user.user_id) + '_' + str(i+1))
+        msg += get_settings_spot(spot, order)
+    return msg
+
+def get_full_info(spot: Spot) -> str:
+    info = f"ІД: {spot.chat_id}:\n"
+    info += _get_settings(spot)
     info += "\nСтатуси:\n"
-    info += f"Стан: {user.last_state}\n"
-    info += f"Остання зміна стану (UTC): {user.last_ts}\n"
-    info += f"Останній виклик слухача (UTC): {user.last_heared_ts}\n"
-    if user.endpoint or user.headers:
+    info += f"Стан: {spot.last_state}\n"
+    info += f"Остання зміна стану (UTC): {spot.last_ts}\n"
+    info += f"Останній виклик слухача (UTC): {spot.last_heared_ts}\n"
+    if spot.endpoint or spot.headers:
         info += "*Extra*:\n"
-        info += f"Ендпоінт {str(user.endpoint)}:\n"
-        info += f"Хідер {str(user.headers)}:\n"
+        info += f"Ендпоінт {str(spot.endpoint)}:\n"
+        info += f"Хідер {str(spot.headers)}:\n"
     return info
 
 def get_key_list(dictionary:dict) -> str:
     msg = ''
     for label in dictionary.keys():
         msg += "- " + label + '\n'
+    return msg
+
+def get_state_msg(spot: Spot, status: str, immediately: bool = False) -> str:
+    now_ts_short = datetime.now(TIMEZONE).strftime('%H:%M')
+    msg     = ""
+    add     = ""
+    windows = None
+    # if spot.has_schedule: 
+    #     try:
+    #         windows = get_windows_analysis(BO_CITIES[spot.city], BO_GROUPS[spot.group])
+    #         add = "\n" + get_outage_message(status, windows)
+    #     except Exception as e:
+    #         logger.error(f'Exception in get_state_msg: {e}, status={status}, windows={windows}')
+    # if last_state is not set
+    if not spot.last_state:
+        if spot.label and spot.label != '':
+            msg += f"{spot.label} тепер моніториться на наявність електрохарчування\n"
+        else:
+            msg += "Моніториться на наявність електрохарчування\n"
+    # turned on
+    if spot.last_state and spot.last_state != status and spot.last_state == cfg.OFF:
+        delta = datetime.now() - spot.last_ts
+        msg += f"💡*{now_ts_short}* Юху! Світло повернулося!\n" + "⏱ Було відсутнє *" + get_string_period(delta) + "*"
+        msg += add
+    # turned off
+    elif spot.last_state and spot.last_state != status and spot.last_state == cfg.ALIVE:
+        delta = datetime.now() - spot.last_ts
+        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову без світла 😒\n" + "⏱ Було наявне *" + get_string_period(delta) + "*"
+        msg += add
+    # same
+    elif cfg.isPostOK == 'T' or immediately:
+        delta = datetime.now() - spot.last_ts if spot.last_ts else timedelta(seconds=1)
+        if status == cfg.ALIVE:
+            msg += cfg.msg_alive
+            msg += "\n" + "⏱ Світло є вже *" + get_string_period(delta) + "*"
+            msg += add
+        else:
+            msg += cfg.msg_blackout
+            msg += "\n" + "⏱ Світла немає вже *" + get_string_period(delta) + "*"
+            msg += add
     return msg
 
 def get_outage_message(state: str, windows: dict) -> str:
@@ -149,5 +229,5 @@ def get_notificatiom_tomorrow_schedule(schedule_tom):
         if window['type'] == 'DEFINITE_OUTAGE':
             message += f"🔦 Відключення з *{window['start']:02}:00* до *{window['end']:02}:00*\n"
         elif window['type'] == 'POSSIBLE_OUTAGE':
-            message += f"⚠️ Сіра зона до *{window['end_po']:02}:00*\n"
+            message += f"⚠️ Сіра зона до *{window['end']:02}:00*\n"
     return message

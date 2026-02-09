@@ -57,14 +57,15 @@ def get_key_safe(dictionary, key, default):
     if key not in dictionary.keys(): return default
     else: return dictionary[key]
 
-def check_custom_api1(endpoint: str, headers) -> bool:
+def check_custom_api1(endpoint: str, headers, api_details) -> bool:
     response = urlr.get(endpoint, headers=headers)
     data = response.json()
     data = get_key_safe(get_key_safe(data, 'data', {}), 'thingList', {})
     try:
-        check = str(([x['itemData']['online'] for x in data if x['itemData']['deviceid'] == '1001f89cc4'])[0]) == 'True'
+        check = str(([x['itemData']['online'] for x in data if x['itemData']['deviceid'] == api_details])[0]) == 'True'
         return cfg.ALIVE if check else cfg.OFF
     except Exception as e:
+        logger.warning(f'API call error: {data}')
         return cfg.OFF 
 
 def check_port(host, port, timeout=2):
