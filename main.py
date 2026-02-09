@@ -86,15 +86,12 @@ def get_syscommand(chat_id:str, cmd_type:str) -> bool:
 def start(update: Update, context: CallbackContext) -> None:
     user_id = str(update.message.from_user.id)
     user    = Userdb(int(user_id))
-    #logger.info(f'User {user_id} invoked "start"')
     if user.new :
         spot = Spot(user.user_id, str(user.user_id))
         reply_md(cfg.msg_greeting, update)
         user.new = False
-        #logger.info(f'start: User {user_id} invoked is new')
     else:
         # Recreate the jobs if saved previously
-        #logger.info(f'start: User {user_id} - recreating jobs')
         session = SessionMain()
         spots = session.query(models.Spot).filter_by(user_id=user.user_id).order_by(models.Spot.chat_id).all()
         for spot in spots:
@@ -308,12 +305,9 @@ def set_channel(update: Update, context: CallbackContext, args: str) -> None:
     elif ' ' in entered:
         reply_md(cfg.msg_badinput, update)
     else:
-        channel_id = entered
-        if channel_id.startswith('https://t.me/'): channel_id = channel_id.replace('https://t.me/', '')
-        if not channel_id.startswith('@') and not channel_id[1:].isnumeric(): channel_id = '@' + channel_id
-        spot.channel_id = channel_id
+        spot.channel_id = entered
         spot.refresh()
-        reply_md(f'Налаштовано публікацію в канал {channel_id}', update, reply_markup=reply_markup)
+        reply_md(f'Налаштовано публікацію в канал {spot.channel_id}', update, reply_markup=reply_markup)
 
 def add_spot(update: Update, context: CallbackContext, args: str) -> None:
     params  = json.loads(args)
@@ -386,19 +380,18 @@ def _ping(user_id, chat_id, force_state = None):
         msg    = utils.get_text_safe_to_markdown(result.message)
         if msg and spot.to_bot: 
             try:
+                header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
                 bot.send_message(chat_id=spot.user_id, 
-                                 text=utils.get_text_safe_to_markdown(spot.name + '\n') + msg, 
+                                 text=header + msg, 
                                  parse_mode=PARSE_MODE)
             except Exception as e:
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {spot.user_id}')
         if msg and spot.to_channel and spot.channel_id:
-            if str(spot.channel_id).startswith('-') and str(spot.channel_id)[1:].isnumeric():
-                #logger.info(f'Sending to private channel: User {spot.user_id} to channel {spot.channel_id}, msg: "{msg}"')
-                channel_id:int = int(spot.channel_id)
-            else: 
-                channel_id = spot.channel_id
             try:
-                bot.send_message(chat_id = channel_id, text=msg, parse_mode=PARSE_MODE)
+                bot.send_message(chat_id = spot.treated_channel_id, 
+                                 message_thread_id = spot.thread_id, 
+                                 text=msg, 
+                                 parse_mode=PARSE_MODE)
             except Exception as e:
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {spot.channel_id}')
     except Exception as e:
@@ -489,15 +482,19 @@ def _listen(user_id, chat_id):
         spot.refresh()
         if changed and msg and spot.to_bot: 
             try:
+                header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
                 bot.send_message(chat_id=spot.user_id, 
-                                 text=utils.get_text_safe_to_markdown(spot.name + '\n') + msg, 
+                                 text=header + msg, 
                                  parse_mode=PARSE_MODE)
             except Exception as e:
                 print(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.user_id}')
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.user_id}')
         if changed and msg and spot.to_channel and spot.channel_id:
             try:
-                bot.send_message(chat_id=spot.channel_id, text=msg, parse_mode=PARSE_MODE)
+                bot.send_message(chat_id=spot.treated_channel_id, 
+                                 message_thread_id = spot.thread_id, 
+                                 text=msg, 
+                                 parse_mode=PARSE_MODE)
             except Exception as e:
                 print(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.channel_id}')
                 logger.error(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.channel_id}')
@@ -836,11 +833,15 @@ def ping_now(update: Update, context: CallbackContext, args:str = '{}') -> None:
         msg = utils.get_text_safe_to_markdown(msg)
         result = utils.PingResult(False, msg)
     if result.message: 
-        bot.send_message(chat_id=spot.user_id, 
-                         text=utils.get_text_safe_to_markdown(spot.name + '\n') + msg, 
+        header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
+        bot.send_message(chat_id=spot.user_id,
+                         text=header + msg,
                          parse_mode=PARSE_MODE)
     if msg and result.changed and spot.to_channel and spot.channel_id:
-        bot.send_message(chat_id=spot.channel_id, text=msg, parse_mode=PARSE_MODE)
+        bot.send_message(chat_id=spot.treated_channel_id, 
+                         message_thread_id=spot.thread_id, 
+                         text=msg, 
+                         parse_mode=PARSE_MODE)
 
 def _heard(user_id: str, chat_id: str) -> None:
     msg = None
@@ -855,11 +856,15 @@ def _heard(user_id: str, chat_id: str) -> None:
             spot.last_ts    = datetime.now()
         spot.last_heared_ts = datetime.now()
         if msg and spot.to_bot: 
+            header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
             bot.send_message(chat_id=spot.user_id, 
-                             text=utils.get_text_safe_to_markdown(spot.name + '\n') + msg, 
+                             text=header + msg, 
                              parse_mode=PARSE_MODE)
         if msg and spot.to_channel and spot.channel_id:
-            bot.send_message(chat_id=spot.channel_id, text=msg, parse_mode=PARSE_MODE)
+            bot.send_message(chat_id=spot.treated_channel_id, 
+                             message_thread_id=spot.thread_id, 
+                             text=msg, 
+                             parse_mode=PARSE_MODE)
 
 #TODO Blackout schedule
 # def _send_notifications():
@@ -1038,7 +1043,10 @@ session.close()
 # Function to handle button clicks (callbacks)
 def button_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
-    query.answer()  # Acknowledge the callback
+    try:
+        query.answer()  # Acknowledge the callback
+    except Exception as e:
+        update.message.delete()
     params = json.loads(query.data)
     cmd = params['cmd']
 
@@ -1128,7 +1136,8 @@ def send():
     # that equal to external chat_iв + spot_id (sequence of chat_if with 1,2,3 spot index)
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    TIMEZONE = pytz.timezone(cfg.TZ)
+    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
     spot = sender if not spot else spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1145,7 +1154,8 @@ def get():
     # that equal to external chat_iв + spot_id (sequence of chat_if with 1,2,3 spot index)
     sender = request.args.get('chat_id')
     _spot  = request.args.get('spot_id')
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    TIMEZONE = pytz.timezone(cfg.TZ)
+    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
     _spot = sender if not _spot else _spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1163,7 +1173,8 @@ def on():
     # that equal to external chat_iв + spot_id (sequence of chat_if with 1,2,3 spot index)
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    TIMEZONE = pytz.timezone(cfg.TZ)
+    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
     spot = sender if not spot else spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1180,7 +1191,8 @@ def off():
     # that equal to external chat_iв + spot_id (sequence of chat_if with 1,2,3 spot index)
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    TIMEZONE = pytz.timezone(cfg.TZ)
+    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
     spot = sender if not spot else spot  
     #caller_ip = request.remote_addr
     if not sender:
