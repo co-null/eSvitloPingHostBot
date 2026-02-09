@@ -1137,7 +1137,7 @@ def send():
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
     TIMEZONE = pytz.timezone(cfg.TZ)
-    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now(TIMEZONE).strftime('%d.%m.%Y %H:%M:%S')
     spot = sender if not spot else spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1155,7 +1155,7 @@ def get():
     sender = request.args.get('chat_id')
     _spot  = request.args.get('spot_id')
     TIMEZONE = pytz.timezone(cfg.TZ)
-    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now(TIMEZONE).strftime('%d.%m.%Y %H:%M:%S')
     _spot = sender if not _spot else _spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1174,7 +1174,7 @@ def on():
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
     TIMEZONE = pytz.timezone(cfg.TZ)
-    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now(TIMEZONE).strftime('%d.%m.%Y %H:%M:%S')
     spot = sender if not spot else spot
     #caller_ip = request.remote_addr
     if not sender:
@@ -1192,7 +1192,7 @@ def off():
     sender = request.args.get('chat_id')
     spot   = request.args.get('spot_id')
     TIMEZONE = pytz.timezone(cfg.TZ)
-    ts = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now(TIMEZONE).strftime('%d.%m.%Y %H:%M:%S')
     spot = sender if not spot else spot  
     #caller_ip = request.remote_addr
     if not sender:
