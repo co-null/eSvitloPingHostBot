@@ -496,8 +496,8 @@ def _listen(user_id, chat_id):
                                  text=msg, 
                                  parse_mode=PARSE_MODE)
             except Exception as e:
-                print(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.channel_id}')
-                logger.error(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.channel_id}')
+                print(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.treated_channel_id}')
+                logger.error(f'Forbidden: bot is not a member of the channel chat, {spot.chat_id} tried to send to {spot.treated_channel_id}')
     except Exception as e:
         logger.error(f"Exception in _listen({user_id}, {chat_id}): {str(e)}")
         bot.send_message(chat_id=bot_secrets.ADMIN_ID, text=f"Exception in _listen({user_id}, {chat_id}): {str(e)}", parse_mode=PARSE_MODE)
@@ -855,16 +855,19 @@ def _heard(user_id: str, chat_id: str) -> None:
             spot.last_state = cfg.ALIVE
             spot.last_ts    = datetime.now()
         spot.last_heared_ts = datetime.now()
-        if msg and spot.to_bot: 
-            header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
-            bot.send_message(chat_id=spot.user_id, 
-                             text=header + msg, 
-                             parse_mode=PARSE_MODE)
-        if msg and spot.to_channel and spot.channel_id:
-            bot.send_message(chat_id=spot.treated_channel_id, 
-                             message_thread_id=spot.thread_id, 
-                             text=msg, 
-                             parse_mode=PARSE_MODE)
+        try:
+            if msg and spot.to_bot: 
+                header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
+                bot.send_message(chat_id=spot.user_id, 
+                                text=header + msg, 
+                                parse_mode=PARSE_MODE)
+            if msg and spot.to_channel and spot.channel_id:
+                bot.send_message(chat_id=spot.treated_channel_id, 
+                                message_thread_id=spot.thread_id, 
+                                text=msg, 
+                                parse_mode=PARSE_MODE)
+        except Exception as e:
+            logger.error(f'Error in _heard({user_id},{chat_id}): bot {spot.user_id} tried to send to {spot.treated_channel_id}, exception: {str(e)}')
 
 #TODO Blackout schedule
 # def _send_notifications():
@@ -1046,7 +1049,7 @@ def button_callback(update: Update, context: CallbackContext) -> None:
     try:
         query.answer()  # Acknowledge the callback
     except Exception as e:
-        update.message.delete()
+        return
     params = json.loads(query.data)
     cmd = params['cmd']
 
