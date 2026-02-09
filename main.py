@@ -3,7 +3,7 @@ from structure.user import *
 from structure.spot import *
 from db.database import SessionMain
 #import blackout_schedule as bos
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler, ContextTypes
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler
 from telegram import Update, Bot, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.utils.request import Request as TRequest
 import logging, traceback, schedule, time, threading, pytz, json
