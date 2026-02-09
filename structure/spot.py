@@ -129,6 +129,27 @@ class Spot:
         return self.__channel_id
     
     @property
+    def treated_channel_id(self):
+        thread_pos = self.__channel_id.find(':')
+        if not thread_pos == -1:
+            channel = self.__channel_id[:thread_pos]
+        else: # No thread
+            channel = self.__channel_id
+        if str(channel).startswith('-') and str(channel)[1:].isnumeric():
+            #Private channel
+            channel:int = int(channel)
+        return channel
+    
+    @property
+    def thread_id(self):
+        thread_pos = self.__channel_id.find(':')
+        if not thread_pos == -1:
+            thread  = self.__channel_id[thread_pos+1:]
+        else: # No thread
+            thread = None
+        return int(thread)
+    
+    @property
     def to_bot(self):
         #self.__get_from_db()
         return self.__to_bot
@@ -238,6 +259,12 @@ class Spot:
         self.__get_from_db()
         return self.__last_heared_ts
     
+    @property
+    def is_multipost(self):
+        spots = self.__session.query(models.Spot).filter_by(user_id=self.__user_id, 
+                                                            channel_id=self.__channel_id).count()
+        return True if spots and spots > 1 else False
+    
     def __get_spot_for_update(self):
         return self.__session.query(models.Spot).filter_by(chat_id=self.__chat_id).first()
     
@@ -272,6 +299,10 @@ class Spot:
     @channel_id.setter
     def channel_id(self, value: str):
         spot_to_update = self.__get_spot_for_update()
+        if value:
+            if value.startswith('https://t.me/'): value = value.replace('https://t.me/', '')
+            thread_pos = value.find(':')
+            if not value.startswith('@') and not str(value[:thread_pos])[1:].isnumeric(): value = '@' + value
         if not spot_to_update.channel_id == value:
             spot_to_update.channel_id = value
             spot_to_update.ts_upd = datetime.now(TIMEZONE)

@@ -1,5 +1,5 @@
 import config as cfg
-import platform, subprocess, pytz, time, socket, logging, traceback
+import platform, subprocess, pytz, time, socket, logging, ast
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
 import requests as urlr
@@ -58,7 +58,7 @@ def get_key_safe(dictionary, key, default):
     else: return dictionary[key]
 
 def check_custom_api1(endpoint: str, headers, api_details) -> bool:
-    response = urlr.get(endpoint, headers=headers)
+    response = urlr.get(endpoint, headers=ast.literal_eval((headers)))
     data = response.json()
     data = get_key_safe(get_key_safe(data, 'data', {}), 'thingList', {})
     try:

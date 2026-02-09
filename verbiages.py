@@ -123,6 +123,8 @@ def get_state_msg(spot: Spot, status: str, immediately: bool = False) -> str:
     msg     = ""
     add     = ""
     windows = None
+    if spot.is_multipost:
+        msg += f"*{spot.name}*\n"
     # if spot.has_schedule: 
     #     try:
     #         windows = get_windows_analysis(BO_CITIES[spot.city], BO_GROUPS[spot.group])
