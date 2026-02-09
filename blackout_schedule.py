@@ -1,8 +1,8 @@
 import config as cfg
 import user_settings as us
+from structure.spot import Spot
 import requests as urlr
-import utils
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 import os, logging, traceback, time, pytz, json
 from logging.handlers import TimedRotatingFileHandler
 
@@ -11,7 +11,6 @@ logger = logging.getLogger('eSvitlo-blackout-schedule')
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler
-#fh = logging.FileHandler('errors.log', encoding='utf-8')
 fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
 fh.setLevel(logging.INFO)
 
@@ -28,10 +27,10 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-use_tz         = pytz.timezone(cfg.TZ)
-bo_groups      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
-bo_groups_text = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV','group_5':'Група V','group_6':'Група VI'}
-bo_cities      = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka', 'Ірпінь':'irpin'}
+TIMEZONE       = pytz.timezone(cfg.TZ)
+BO_GROUPS      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
+BO_GROUPS_TEXT = {'group_1':'Група I','group_2':'Група II','group_3':'Група III','group_4':'Група IV','group_5':'Група V','group_6':'Група VI'}
+BO_CITIES      = {'Київ':'kiev', 'Дніпро':'dnipro', 'Софіївська Борщагівка':'sofiivska_borshchagivka', 'Ірпінь':'irpin'}
 
 blackout_schedule = {}
 shedulers = {}
@@ -42,7 +41,7 @@ def get_blackout_schedule():
         response = urlr.get(cfg.YASNO_URL)
         tmp_schedule = None
         tmp_schedule = response.json()
-        tmp_schedule = tmp_schedule['components'][3]['schedule']
+        tmp_schedule = tmp_schedule['components'][5]['schedule']
         response.close()    
     except Exception as e:
         logger.error(f"Exception happened in get_blackout_schedule(): {traceback.format_exc()}")
@@ -67,7 +66,7 @@ def adjust_dtek_schedule(file: str):
     custom_schedule = load_custom_schedule_dtek(file)
     city_id         = custom_schedule['city_id']
     city            = {}
-    for group_id in bo_groups.keys():
+    for group_id in BO_GROUPS.keys():
         #print(f"Group {group_id}")
         _days = []
         for day in range(7):
@@ -115,10 +114,104 @@ def adjust_dtek_schedule(file: str):
                     #print(f"Window {_window}")
                     _day.append(dict(_window))
             _days.append(_day[:])
-        city[bo_groups[group_id]] = _days[:]
+        city[BO_GROUPS[group_id]] = _days[:]
     blackout_schedule[city_id] = city
 
+def _get_window(hour: int, schedule: dict, today = True) -> dict:
+    window = {}
+    window['ends_tomorrow'] = not today
+
+    for window_id in range(len(schedule)):
+        # before the window
+        if hour < int(schedule[window_id]['start']):
+            # not in window
+            window['type']  = 'OUT_OF_SCHEDULE'
+            window['start'] = hour
+            window['end']   = schedule[window_id]['start']
+            return window
+        # after the last window
+        elif hour >= int(schedule[window_id]['end']) and window_id == (len(schedule) - 1):
+            # not in window
+            window['type']          = 'OUT_OF_SCHEDULE'
+            window['start']         = int(schedule[window_id]['end'])
+            window['end']           = None
+            window['ends_tomorrow'] = True
+            return window
+        # looking for window
+        if hour >= int(schedule[window_id]['start']) and hour < int(schedule[window_id]['end']):
+            window   = dict(schedule[window_id])
+            window['ends_tomorrow'] = not today
+            # add real end
+            if window['end'] == 24:
+                window['end']           = None
+                window['ends_tomorrow'] = True
+            return window
+
+
+def get_window(hour: int, schedule: dict, schedule_next: dict = None, today = True) -> dict:
+    window = _get_window(hour, schedule, today)
+    if not window['end'] and schedule_next:
+        next = _get_window(0, schedule_next)
+        if window['type'] == next['type']:
+            window['end'] = next['end']
+        else:
+            window['end'] = 0
+    return window
+
+
 def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
+    yesterday = (timestamp - timedelta(days=1)).replace(hour=23, minute=1)
+    tomorrow  = timestamp + timedelta(days=1)
+    sch_yest  = blackout_schedule[city][group_id][yesterday.weekday()]
+    sch_today = blackout_schedule[city][group_id][timestamp.weekday()]
+    sch_tom   = blackout_schedule[city][group_id][tomorrow.weekday()]
+    out = {}
+  
+    # find current window
+    current = get_window(timestamp.hour, sch_today, sch_tom, True)
+    if current['start'] == 0:
+        # get yesterday window
+        previous = get_window(yesterday.hour, sch_yest)
+        if current['type'] == previous['type']:
+            # enlarge
+            current['start'] = previous['start']
+
+    # find second event
+    if not current['ends_tomorrow']:
+        second = get_window(int(current['end']), sch_today, sch_tom, True)
+    else:
+        second = get_window(int(current['end']), sch_tom, None, False)
+
+    # find third event
+    if not second['ends_tomorrow']:
+        third = get_window(int(current['end']), sch_today, sch_tom, True)
+    else:
+        third = get_window(int(current['end']), sch_tom, None, False)
+
+    out['current'] = current
+    if current['type'] == 'OUT_OF_SCHEDULE' and second['type'] == 'DEFINITE_OUTAGE':
+        out['next_outage'] = second
+        out['gray_zone']   = third
+    elif current['type'] == 'DEFINITE_OUTAGE' and second['type'] == 'POSSIBLE_OUTAGE':
+        out['gray_zone']  = second
+        out['next_alive'] = third
+        # find fourth event
+        if not third['ends_tomorrow']:
+            fourth = get_window(int(current['end']), sch_today, sch_tom, True)
+        else:
+            fourth = get_window(int(current['end']), sch_tom, None, False)
+        out['next_outage'] = fourth
+    elif current['type'] == 'POSSIBLE_OUTAGE' and second['type'] == 'OUT_OF_SCHEDULE':
+        out['next_alive']  = second
+        out['next_outage'] = third
+    else:
+        if second['type'] == 'DEFINITE_OUTAGE': out['next_outage'] = second
+        elif second['type'] == 'POSSIBLE_OUTAGE': out['gray_zone'] = second
+        else: out['next_alive'] = second # should not happen
+    return out
+
+'''
+def get_window_by_ts_old(timestamp: datetime, city:str, group_id: str) -> dict:
     delta     = timedelta(days=1)
     tomorrow  = timestamp + delta
     weekday   = timestamp.weekday()
@@ -223,37 +316,56 @@ def get_window_by_ts(timestamp: datetime, city:str, group_id: str) -> dict:
         if sch_tom[0]['type'] == 'DEFINITE_OUTAGE' and sch_tom[0]['start'] == 0:
             next['end'] = sch_tom[0]['end']
     return {'current': current, 'next': next}
+'''
 
-def get_windows_for_tomorrow(user: us.User):
-    city     = bo_cities[user.city]
-    group_id = bo_groups[user.group]
+def get_windows_for_tomorrow(user: Spot):
+    city      = BO_CITIES[user.city]
+    group_id  = BO_GROUPS[user.group]
+    now_ts    = datetime.now(TIMEZONE)
+    before     = now_ts.replace(hour=23, minute=1)
+    tomorrow  = (now_ts + timedelta(days=1)).replace(hour=0, minute=1)
+    after_tom = now_ts + timedelta(days=2)
+    sch_today = blackout_schedule[city][group_id][before.weekday()]
+    sch_tom   = blackout_schedule[city][group_id][tomorrow.weekday()]
+    sch_ttom  = blackout_schedule[city][group_id][after_tom.weekday()]
     sch     = []
-    now_ts  = datetime.now(use_tz)
-    delta   = timedelta(hours=1)
-    before  = now_ts.replace(hour=23, minute=59, second=59)
-    windows = get_window_by_ts(before, city, group_id)
     last    = None
-    if windows['current']['type'] == 'DEFINITE_OUTAGE':
-        last = windows['current']
-        sch.append(dict(windows['current']))
-    for hour in range(24):
-        before = before + delta
-        windows = get_window_by_ts(before, city, group_id)
+
+    # find first window
+    window = get_window(tomorrow.hour, sch_tom, sch_ttom)
+    if window['start'] == 0:
+        # get today last window
+        previous = get_window(before.hour, sch_today, sch_tom)
+        if window['type'] == previous['type']:
+            # enlarge
+            window['start'] = previous['start']
+
+    if window['type'] == 'DEFINITE_OUTAGE':
+        last = dict(window)
+        sch.append(dict(window))
+
+    for _ in range(24):
+        before = before + timedelta(hours=1)
+        window = get_window(before.hour, sch_tom, sch_ttom)
+
         if not last:
-            last = windows['current']
-            sch.append(dict(windows['current']))
-        if windows['current']['type'] != last['type']:
-            last = windows['current']
-            sch.append(dict(windows['current']))
+            last = dict(window)
+            sch.append(dict(window))
+        if window['type'] != last['type']:
+            last = dict(window)
+            sch.append(dict(window))
+
+        if window['ends_tomorrow']: break
     return sch
 
 def get_windows_analysis(city:str, group_id: str) -> dict:
-    now_ts  = datetime.now(use_tz)
-    for city_key in bo_cities:
-        if bo_cities[city_key] not in blackout_schedule.keys():
+    now_ts  = datetime.now(TIMEZONE)
+    for city_key in BO_CITIES:
+        if BO_CITIES[city_key] not in blackout_schedule.keys():
             get_blackout_schedule()
             time.sleep(5)
     windows = get_window_by_ts(now_ts, city, group_id)
+    print(windows)
     if windows['next']['type'] != 'DEFINITE_OUTAGE':
         if windows['next']['start'] > windows['current']['start'] and windows['next']['end'] <= 23:
             over_next_ts = now_ts.replace(hour=windows['next']['end'], minute=30, second=0)
@@ -267,17 +379,16 @@ def get_windows_analysis(city:str, group_id: str) -> dict:
     return windows
 
 def get_next_outage(city:str, group_id: str) -> datetime:
-    now_ts  = datetime.now(use_tz)
+    now_ts  = datetime.now(TIMEZONE)
     windows = get_window_by_ts(now_ts, city, group_id)
-    if windows['next']['type'] == 'DEFINITE_OUTAGE':
-        return now_ts.replace(hour=windows['next']['start'], minute=0, second=0)
-    else: return None
+    return now_ts.replace(hour=windows['next_outage']['start'], minute=0, second=0)
 
-def get_next_outage_window(user: us.User):
-    now_ts  = datetime.now(use_tz)
-    windows = get_window_by_ts(now_ts, bo_cities[user.city], bo_groups[user.group])
+
+def get_next_outage_window(user: Spot):
+    now_ts  = datetime.now(TIMEZONE)
+    windows = get_window_by_ts(now_ts, BO_CITIES[user.city], BO_GROUPS[user.group])
     next_ts = now_ts.replace(hour=windows['current']['end']) + timedelta(hours=1)
-    after   = get_window_by_ts(next_ts, bo_cities[user.city], bo_groups[user.group])
+    after   = get_window_by_ts(next_ts, BO_CITIES[user.city], BO_GROUPS[user.group])
     gray    = -1
     if after['current']['type'] == 'POSSIBLE_OUTAGE':
         gray = after['current']['end_po']
@@ -296,22 +407,22 @@ def get_notification_ts(next_outage: datetime) -> datetime:
 
 def set_notifications():
     #print("Start set notifications job")
-    now_ts  = datetime.now(use_tz)
+    now_ts  = datetime.now(TIMEZONE)
     for user_id in us.user_settings.keys():
         chat_id = us.user_settings[user_id]['chat_id']
         user    = us.User(user_id, chat_id)
         try:
             # has schedule and notification not set
             if user.has_schedule and user.to_remind and user.last_ts and not user.next_notification_ts:
-                delta = datetime.now() - user.last_ts
+                delta = datetime.now(TIMEZONE) - user.last_ts.replace(tzinfo=TIMEZONE)
                 if delta.days > 0: continue
-                next_outage = get_next_outage(bo_cities[user.city], bo_groups[user.group])
+                next_outage = get_next_outage(BO_CITIES[user.city], BO_GROUPS[user.group])
                 if next_outage:
                     user.next_outage_ts       = next_outage
                     user.next_notification_ts = get_notification_ts(next_outage)
                     user.save_state()
             if user.has_schedule and user.to_remind and user.last_ts and not user.tom_notification_ts:
-                    delta = datetime.now() - user.last_ts
+                    delta = datetime.now(TIMEZONE) - user.last_ts
                     if delta.days > 0: continue
                     user.tom_schedule_ts     = now_ts.replace(hour=21, minute=5, second=0)
                     user.tom_notification_ts = now_ts.replace(hour=20, minute=45, second=0)

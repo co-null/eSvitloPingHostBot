@@ -1,6 +1,7 @@
 SETTINGS_FILE = 'user_settings.json'
 STATES_FILE = 'user_states.json'
 SCHEDULE_FILE='blackout_schedule.json'
+DTEK_SETTINGS_FILE='dtek.cfg'
 LOG_FILE = 'errors.log'
 TZ = 'Europe/Kiev'
 LISTENER_URL = 'http://35.192.99.228:5000/send?chat_id='
@@ -52,6 +53,7 @@ msg_nochannel="Канал не вказано"
 msg_alive="💡Електрохарчування *є*!"
 msg_blackout="🔦 Немає світла!"
 msg_badinput='Некоректний ввод'
+msg_spotadded='Нову точку додано, налаштуйте її'
 
 msg_listparams='Список параметрів:\nip_address(str)\nlistener(bool)\nlabel(str)\nchannel_id(str)\nto_bot(bool)\nto_channel(bool)\nhas_schedule(bool)\ncity(str)\ngroup(str)\nto_remind(bool)\nto_telegram(bool)\nendpoint(str)\nheaders(json)\nlast_state(str:["alive"|"not reachable"])\nlast_ts(datetime UTC)\nlast_heared_ts(datetime UTC)\nnext_notification_ts(datetime Kyiv)\nnext_outage_ts(datetime Kyiv)\ntom_notification_ts(datetime Kyiv)\ntom_schedule_ts(datetime Kyiv)'
 msg_helplist="1 - Загальні питання\n*Головне меню*:\n2 - Отримати статус негайно\n3 - Старт\n4 - Стоп\n5 - Налаштування" +\
