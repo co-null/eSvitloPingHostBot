@@ -141,13 +141,14 @@ class Spot:
         return channel
     
     @property
-    def thread_id(self):
-        thread_pos = self.__channel_id.find(':')
-        if not thread_pos == -1:
-            thread  = self.__channel_id[thread_pos+1:]
+    def thread_id(self) -> int:
+        if self.__channel_id:
+            thread_pos = self.__channel_id.find(':')
+            if not thread_pos == -1:
+                return  int(self.__channel_id[thread_pos+1:])
+            else: return None
         else: # No thread
-            thread = None
-        return int(thread)
+            return None
     
     @property
     def to_bot(self):
