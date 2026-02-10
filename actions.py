@@ -1,7 +1,8 @@
-import utils
+import utils, config as cfg
 from verbiages import get_state_msg
 from structure.spot import Spot
-import logging
+from datetime import datetime
+import pytz, logging
 from logging.handlers import TimedRotatingFileHandler
 
 # Create a logger
@@ -32,9 +33,8 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
         if spot.last_state and status==spot.last_state: changed = False
         else: changed = True
         msg = get_state_msg(spot, status, True)
-        if changed:
-            spot.new_state(status)
-        spot.refresh()
+        if changed: spot.new_state(status)
+        if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))
         return utils.PingResult(changed, msg)
     elif spot.ip_address:
         port_pos =  spot.ip_address.find(':')
@@ -45,12 +45,10 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
             if changed or immediately:
                 msg = get_state_msg(spot, status, immediately)
             else: msg = ""
-            if changed:
-                spot.new_state(status)
-            spot.refresh()
+            if changed: spot.new_state(status)
+            if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
             return utils.PingResult(changed, msg)
         else:
-            #logger.info(f'Pinging: User {spot.user_id} - {spot.ip_address}')
             host = spot.ip_address[:port_pos]
             port = spot.ip_address[port_pos+1:]
             status = utils.check_port(host, port)
@@ -60,9 +58,8 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
                 logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
                 msg = get_state_msg(spot, status, immediately)
             else: msg = ""
-            if changed:
-                spot.new_state(status)
-            spot.refresh()
+            if changed: spot.new_state(status)
+            if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
             return utils.PingResult(changed, msg)
     elif not spot.ip_address and spot.endpoint:
         status = utils.check_custom_api1(spot.endpoint, spot.headers, spot.api_details)
@@ -72,8 +69,7 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
             logger.info(f'API call: User {spot.user_id} - status: {status}, changed:{changed}')
             msg = get_state_msg(spot, status, immediately)
         else: msg = ""
-        if changed:
-            spot.new_state(status)
-        spot.refresh()
+        if changed: spot.new_state(status)
+        if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
         return utils.PingResult(changed, msg)
     else: utils.PingResult(False, "")
