@@ -138,18 +138,18 @@ def get_state_msg(spot: Spot, status: str, immediately: bool = False) -> str:
         else:
             msg += "Моніториться на наявність електрохарчування\n"
     # turned on
-    if spot.last_state and spot.last_state != status and spot.last_state == cfg.OFF:
-        delta = datetime.now() - spot.last_ts
+    if spot.last_state and status == cfg.ALIVE and spot.last_state == cfg.OFF:
+        delta = datetime.now(TIMEZONE).replace(tzinfo=None) - spot.last_ts
         msg += f"💡*{now_ts_short}* Юху! Світло повернулося!\n" + "⏱ Було відсутнє *" + get_string_period(delta) + "*"
         msg += add
     # turned off
-    elif spot.last_state and spot.last_state != status and spot.last_state == cfg.ALIVE:
-        delta = datetime.now() - spot.last_ts
+    elif spot.last_state and status == cfg.OFF and spot.last_state == cfg.ALIVE:
+        delta = datetime.now(TIMEZONE).replace(tzinfo=None) - spot.last_ts
         msg += f"🔦*{now_ts_short}* Йой… Халепа, знову без світла 😒\n" + "⏱ Було наявне *" + get_string_period(delta) + "*"
         msg += add
     # same
     elif cfg.isPostOK == 'T' or immediately:
-        delta = datetime.now() - spot.last_ts if spot.last_ts else timedelta(seconds=1)
+        delta = datetime.now(TIMEZONE).replace(tzinfo=None) - spot.last_ts if spot.last_ts else timedelta(seconds=1)
         if status == cfg.ALIVE:
             msg += cfg.msg_alive
             msg += "\n" + "⏱ Світло є вже *" + get_string_period(delta) + "*"

@@ -482,14 +482,18 @@ class Spot:
         journal_to_update   = self.__session.query(models.SpotJournal).filter_by(chat_id=self.__chat_id, active_record=1).first()
         spotstate_to_update.last_ts = datetime.now(TIMEZONE)
         if not journal_to_update:
-            journal_to_update = models.SpotJournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
-                                               last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
+            journal_to_update = models.SpotJournal(chat_id=self.__chat_id, spot_state=value, 
+                                                   last_ts=spotstate_to_update.last_ts, 
+                                                   last_heared_ts=spotstate_to_update.last_heared_ts, 
+                                                   from_ts=spotstate_to_update.last_ts, active_record=1)
         if spotstate_to_update.last_state and not spotstate_to_update.last_state == value:
            if not journal_to_update.spot_state == value:
                 journal_to_update.to_ts         = datetime.now(TIMEZONE)
                 journal_to_update.active_record = 0
-                new_journal = models.SpotJournal(chat_id=self.__chat_id, spot_state=value, last_ts=spotstate_to_update.last_ts, 
-                                            last_heared_ts=spotstate_to_update.last_heared_ts, from_ts=spotstate_to_update.last_ts, active_record=1)
+                new_journal = models.SpotJournal(chat_id=self.__chat_id, spot_state=value, 
+                                                 last_ts=spotstate_to_update.last_ts, 
+                                                 last_heared_ts=spotstate_to_update.last_heared_ts, 
+                                                 from_ts=spotstate_to_update.last_ts, active_record=1)
                 self.__session.add(new_journal)
         elif not spotstate_to_update.last_state:
             if not journal_to_update.spot_state == value:
