@@ -366,15 +366,15 @@ def post_to_channel(update: Update, context: CallbackContext, args: str) -> None
     spot.refresh()
     edit_md(msg + "\n" + verbiages._get_settings(spot), update, reply_markup=reply_markup)
 
-def _sender(spot: Spot, msg: str, invoker: str = '_sender') -> None:
+def _sender(spot: Spot, msg: str, invoker: str = '_sender', force_to_bot:bool = False) -> None:
     if not msg or msg == '': return
     header = utils.get_text_safe_to_markdown(f'*{spot.name}*\n' if not spot.is_multipost else '')
-    if spot.to_bot:
+    if spot.to_bot or force_to_bot:
         try:
             bot.send_message(chat_id=spot.user_id, text=header + msg, parse_mode=PARSE_MODE)
         except Exception as e:
                 logger.error(f'Error in _sender(): {invoker} invoked {spot.user_id} to send to bot, exception: {str(e)}')
-    if spot.to_channel and spot.channel_id:
+    if spot.to_channel and spot.channel_id and not force_to_bot:
         try:
             bot.send_message(chat_id=spot.treated_channel_id, 
                              message_thread_id=spot.thread_id, 
@@ -797,7 +797,7 @@ def ping_now(update: Update, context: CallbackContext, args:str = '{}') -> None:
         return
     message = verbiages.get_state_msg(spot, spot.last_state, True)
     message  = utils.get_text_safe_to_markdown(message)
-    _sender(spot, message, 'ping_now()')
+    _sender(spot, message, 'ping_now()', True)
 
 def _heard(user_id: str, chat_id: str) -> None:
     msg = None
