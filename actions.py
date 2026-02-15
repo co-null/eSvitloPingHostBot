@@ -1,31 +1,19 @@
-import utils, config as cfg
+from common.logger import init_logger
+from telegram import Update, Bot
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler
+from telegram import Update, Bot, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, constants
+from bot_secrets import ADMIN_ID
+import common.utils as utils, config as cfg
 from verbiages import get_state_msg
 from structure.spot import Spot
+from structure.user import Userdb
+from common.safe_schedule import SafeScheduler, scheduler
+from user_settings import user_jobs, listeners
 from datetime import datetime
-import pytz, logging
-from logging.handlers import TimedRotatingFileHandler
+import pytz, json
 
 # Create a logger
-logger = logging.getLogger('eSvitlo-actions')
-logger.setLevel(logging.DEBUG)
-
-# Create a file handler
-fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
-fh.setLevel(logging.INFO)
-
-# Create a console handler
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-
-# Create a formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-# Add handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
-
+logger = init_logger('eSvitlo-actions', './logs/esvitlo.log')
 
 def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> utils.PingResult:
     if force_state:
@@ -73,3 +61,90 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
         if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
         return utils.PingResult(changed, msg)
     else: utils.PingResult(False, "")
+
+
+def _ping(user_id:int, chat_id:str, bot:Bot, force_state:str = None):
+    user = Userdb(int(user_id)).get()
+    if not user: return
+    spot = Spot(user.user_id, chat_id).get()
+    if not spot.ip_address and not spot.endpoint:
+        spot.ping_job = None
+        if spot.chat_id in user_jobs.keys():
+            scheduler.cancel_job(user_jobs[spot.chat_id])
+            del user_jobs[spot.chat_id]
+    try:
+        result = _ping_ip(spot, False, force_state)
+        msg    = utils.get_text_safe_to_markdown(result.message)
+        utils._sender(spot, msg, bot, f'_ping({user_id},{chat_id},bot,{force_state})')
+    except Exception as e:
+        logger.error(f"Exception in _ping({user_id},{chat_id},bot,{force_state}): {str(e)}")
+        bot.send_message(chat_id=ADMIN_ID, text=f"Exception in _ping({user_id},{chat_id},bot,{force_state}): {str(e)}")
+
+def _listen(user_id:int, chat_id:str, bot:Bot):
+    try:
+        user = Userdb(int(user_id)).get()
+        if not user: return
+        spot = Spot(user.user_id, chat_id).get()
+        if not spot.listener: 
+            # was turned off somehow
+            return
+        # Do not spam if never worked
+        if not spot.last_state or not spot.last_ts or not spot.last_heared_ts: 
+            return
+        delta   = datetime.now(pytz.timezone(cfg.TZ)).replace(tzinfo=None) - spot.last_heared_ts
+        seconds = 86400*delta.days + delta.seconds
+        # If >180 sec (3 mins) and was turned on - consider blackout
+        if seconds >= 180 and spot.last_state == cfg.ALIVE:
+            status = cfg.OFF
+        elif seconds < 180 and spot.last_state == cfg.ALIVE:
+            # still enabled
+            status = cfg.ALIVE
+        elif seconds < 180 and spot.last_state == cfg.OFF:
+            # already turned off
+            status = cfg.OFF
+        else:    
+            # still turned off
+            status = spot.last_state
+        changed = not (status==spot.last_state)
+        if changed: 
+            msg = get_state_msg(spot, status, False)
+            msg = utils.get_text_safe_to_markdown(msg)
+            spot.new_state(status)
+            logger.info(f'Heared: Spot {spot.chat_id} - status: {status}, changed:{changed}')
+            spot.refresh()
+        if changed: 
+            utils._sender(spot, msg, bot, f'_listen({user_id},{chat_id},bot)')
+    except Exception as e:
+        logger.error(f"Exception in _listen({user_id}, {chat_id}, bot): {str(e)}")
+        bot.send_message(chat_id=ADMIN_ID, text=f"Exception in _listen({user_id},{chat_id}, bot): {str(e)}")
+        return 
+    
+def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}') -> None:
+    params = json.loads(args)
+    user_id = params['uid']
+    spot_id = params['cid']
+    spot    = Spot(user_id, spot_id).get()
+    context.user_data['temporary_callback'] = None
+    context.user_data['requestor'] = None
+    buttons = [[InlineKeyboardButton('OK', callback_data=json.dumps({'cmd':'main_menu'}))]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    if not spot.ip_address and not spot.listener and not spot.endpoint:
+        utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
+        return
+    message = get_state_msg(spot, spot.last_state, True)
+    message  = utils.get_text_safe_to_markdown(message)
+    utils._sender(spot, message, bot, 'ping_now()', True)
+
+def _heard(user_id: str, chat_id: str) -> None:
+    msg = None
+    user = Userdb(int(user_id)).get()
+    if not user: return
+    spot = Spot(user.user_id, chat_id).get()
+    if spot.listener:
+        spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))
+        if spot.last_state != cfg.ALIVE:
+            msg  = get_state_msg(spot, cfg.ALIVE, False)
+            msg  = utils.get_text_safe_to_markdown(msg)
+            spot.new_state(cfg.ALIVE)
+        spot.refresh()
+        utils._sender(spot, msg, f'_heard({user_id},{chat_id})') 

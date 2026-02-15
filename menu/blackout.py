@@ -1,3 +1,4 @@
+from common.logger import init_logger
 import config as cfg
 import user_settings as us
 from structure.spot import Spot
@@ -6,26 +7,7 @@ from datetime import datetime, timedelta, tzinfo
 import os, logging, traceback, time, pytz, json
 from logging.handlers import TimedRotatingFileHandler
 
-# Create a logger
-logger = logging.getLogger('eSvitlo-blackout-schedule')
-logger.setLevel(logging.DEBUG)
-
-# Create a file handler
-fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
-fh.setLevel(logging.INFO)
-
-# Create a console handler
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-
-# Create a formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-# Add handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = init_logger('eSvitlo-blackout', './logs/esvitlo.log')
 
 TIMEZONE       = pytz.timezone(cfg.TZ)
 BO_GROUPS      = {'1':'group_1','2':'group_2','3':'group_3','4':'group_4','5':'group_5','6':'group_6'}
@@ -429,3 +411,140 @@ def set_notifications():
                     user.save_state()
         except Exception as e:
             logger.error(f"Exception happened in set_notifications(): userid={user_id}, user.city={user.city}, user.group = {user.group}, exception: {traceback.format_exc()}")
+
+#TODO Blackout shedule
+# def yasno_schedule(update: Update, context: CallbackContext) -> None:
+#     user_id = str(update.message.from_user.id)
+#     chat_id = update.message.chat_id
+#     logger.info(f'User {user_id} invoked "yasno_schedule"')
+#     if user_id not in us.user_settings.keys():
+#         reply_md(cfg.msg_error, update)
+#         logger.warning(f'User {user_id} unknown')
+#         return
+#     user = us.User(user_id, chat_id)
+#     msg = f'{cfg.msg_setcity}\n{verbiages.get_key_list(bos.bo_cities)}'
+#     msg += cfg.msg_setcitybottom
+#     user.toggle_awaiting_city()
+#     user.save()
+#     update.message.reply_text(msg)
+
+# def get_tom_schedule(update: Update, context: CallbackContext) -> None:
+#     user_id = str(update.message.from_user.id)
+#     chat_id = update.message.chat_id
+#     logger.info(f'User {user_id} invoked "get_tom_schedule"')
+#     if user_id not in us.user_settings.keys():
+#         reply_md(cfg.msg_error, update)
+#         logger.warning(f'User {user_id} unknown')
+#         return
+#     user = us.User(user_id, chat_id)
+#     msg = verbiages.get_notificatiom_tomorrow_schedule(bos.get_windows_for_tomorrow(user))
+#     reply_md(msg, update)
+
+# def reminder(update: Update, context: CallbackContext) -> None:
+#     user_id = str(update.message.from_user.id)
+#     chat_id = update.message.chat_id
+#     logger.info(f'User {user_id} invoked "reminder"')
+#     if user_id not in us.user_settings.keys():
+#         reply_md(cfg.msg_error, update)
+#         logger.warning(f'User {user_id} unknown')
+#         return
+#     user = us.User(user_id, chat_id)
+#     if not user.to_remind and not user.has_schedule:
+#         reply_md(cfg.msg_reminder_no_schedule, update)
+#     elif not user.to_remind and user.has_schedule:
+#         user.to_remind = True
+#         reply_md(cfg.msg_reminder_turnon, update)
+#     elif user.to_remind and user.has_schedule:
+#         user.to_remind = False
+#         reply_md(cfg.msg_reminder_off, update)
+#     #_notification_schedules()
+#     user.save()
+
+#TODO Blackout schedule
+# def _gather_schedules():
+#     # Stop any existing job before starting a new one
+#     if 'yasno' in bos.shedulers.keys():
+#         scheduler.cancel_job(bos.shedulers['yasno'])
+#     # Schedule gathering job every 60 min
+#     bos.shedulers['yasno'] = scheduler.every(cfg.SCHEDULE_GATHER_SCHEDULE).minutes.do(bos.get_blackout_schedule)
+
+# def _notification_schedules():
+#     # Stop any existing job before starting a new one
+#     if 'set_notification' in bos.shedulers.keys():
+#         scheduler.cancel_job(bos.shedulers['set_notification'])
+#     # Schedule set_notification job every 30 min
+#     bos.shedulers['set_notification'] = scheduler.every(cfg.SCHEDULE_SET_NOTIFICATION).minutes.do(bos.set_notifications)
+#     if 'send_notification' in bos.shedulers.keys():
+#         scheduler.cancel_job(bos.shedulers['send_notification'])
+#     # Schedule send_notification job every min
+#     bos.shedulers['send_notification'] = scheduler.every(cfg.SCHEDULE_SEND_NOTIFICATION).minutes.do(_send_notifications)
+
+#TODO Blackout schedule
+# def _send_notifications():
+#     #print("Start send notifications job")
+#     #logger.info('Start send notifications job')
+#     try:
+#         # here all timestamp are in Kyiv TZ
+#         use_tz  = pytz.timezone(cfg.TZ)
+#         now_ts0 = datetime.now(use_tz)
+#         # make tz-naive
+#         now_ts = datetime.strptime((now_ts0.strftime('%Y-%m-%d %H:%M:%S')), '%Y-%m-%d %H:%M:%S')
+#         for user_id in us.user_settings.keys():
+#             chat_id = us.user_settings[user_id]['chat_id']
+#             user    = us.User(user_id, chat_id)
+#             if user.has_schedule and user.to_remind and user.next_notification_ts and user.next_outage_ts:
+#                 if user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state == cfg.ALIVE:
+#                     # will send
+#                     msg = None #utils.get_text_safe_to_markdown(verbiages.get_notification_message_long(bos.get_next_outage_window(user)))
+#                     if msg and user.to_bot: 
+#                         try:
+#                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+#                         except Exception as e:
+#                             print(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {traceback.format_exc()}')
+#                             logger.error(f'Forbidden: bot {user_id} tried to send to {user.chat_id}, exception: {traceback.format_exc()}')
+#                     if msg and user.to_channel and user.channel_id:
+#                         try:
+#                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+#                         except Exception as e:
+#                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {traceback.format_exc()}')
+#                             logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}, exception: {traceback.format_exc()}')
+#                     # update next_notification_ts so we'll not send again
+#                     user.next_notification_ts = user.next_outage_ts
+#                     user.save_state()
+#                 elif user.next_notification_ts < now_ts and user.next_outage_ts > now_ts and user.last_state != cfg.ALIVE:
+#                     # already off
+#                     user.next_notification_ts = None
+#                     user.next_outage_ts       = None
+#                     user.save_state()
+#                 elif user.next_outage_ts < now_ts:
+#                     # outdated
+#                     user.next_notification_ts = None
+#                     user.next_outage_ts       = None
+#                     user.save_state()
+#             if user.has_schedule and user.to_remind and user.tom_notification_ts and user.tom_schedule_ts:
+#                 if user.tom_notification_ts < now_ts and user.tom_schedule_ts > now_ts:
+#                     # will send
+#                     msg = None #verbiages.get_notificatiom_tomorrow_schedule(bos.get_windows_for_tomorrow(user))
+#                     if msg and user.to_bot: 
+#                         try:
+#                             bot.send_message(chat_id=user.chat_id, text=msg, parse_mode=PARSE_MODE)
+#                         except Exception as e:
+#                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+#                             logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.chat_id}')
+#                     if msg and user.to_channel and user.channel_id:
+#                         try:
+#                             bot.send_message(chat_id=user.channel_id, text=msg, parse_mode=PARSE_MODE)
+#                         except Exception as e:
+#                             print(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+#                             logger.error(f'Forbidden: bot is not a member of the channel chat, {user_id} tried to send to {user.channel_id}')
+#                     # update next_notification_ts so we'll not send again
+#                     user.tom_notification_ts = user.tom_schedule_ts
+#                     user.save_state()
+#                 elif user.tom_schedule_ts < now_ts:
+#                     # outdated
+#                     user.tom_notification_ts = None
+#                     user.tom_schedule_ts     = None
+#                     user.save_state()
+#     except Exception as e:
+#         print(f"Exception in _send_notifications(): {traceback.format_exc()}")
+#         logger.error(f"Exception in _send_notifications(): {traceback.format_exc()}")

@@ -1,7 +1,7 @@
 import os
 import json
 from config import SETTINGS_FILE, STATES_FILE, TZ
-import utils
+import common.utils as utils
 #from db.models import User as db_user, Spot as db_spot, SpotState as db_spotstate, SpotJournal as db_spotjournal, SpotNotification as db_notification
 from structure.user import Userdb
 from structure.spot import Spot

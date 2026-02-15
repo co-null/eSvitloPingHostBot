@@ -42,6 +42,7 @@ class Spot(Base):
     to_telegram      = Column(Integer, default=1)
     ts_ins           = Column(TIMESTAMP)
     ts_upd           = Column(TIMESTAMP)
+    is_active        = Column(Integer, default=1)
 
     spotstate     = relationship('SpotState', back_populates='spot')
     journals      = relationship('SpotJournal')
