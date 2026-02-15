@@ -4,7 +4,7 @@ from structure.user import *
 from structure.spot import *
 #TODO Fix blackout schedule
 #from blackout_schedule import BO_GROUPS, BO_GROUPS_TEXT, BO_CITIES, get_windows_analysis
-import utils
+import common.utils as utils
 from datetime import datetime, timedelta
 import pytz, logging
 from logging.handlers import TimedRotatingFileHandler
@@ -88,24 +88,26 @@ def get_settings_spot(spot: Spot, order: str) -> str:
 
 def get_settings(user: Userdb) -> str:
     msg  = cfg.msg_settings + '\n'
-    for i in range(0, user.num_spots):
-        if i == 0: 
-            order = '1'
-            spot = Spot(user.user_id, str(user.user_id))
-        else:
-            msg += '\n'
-            order = str(i+1)
-            spot = Spot(user.user_id, str(user.user_id) + '_' + str(i+1))
-        msg += get_settings_spot(spot, order)
+    msg += f"ID користувача: {user.user_id}\n"
+    order = 0
+    session = SessionMain()
+    spots = session.query(models.Spot).filter_by(user_id=user.user_id, is_active=1).order_by(models.Spot.chat_id).all()
+    for spot_m in spots:
+        order += 1
+        spot = Spot(spot_m.user_id, spot_m.chat_id)
+        if order > 1: msg += '\n'
+        msg += get_settings_spot(spot, str(order))
+    session.close()
     return msg
 
 def get_full_info(spot: Spot) -> str:
-    info = f"ІД: {spot.chat_id}:\n"
+    info = f"ІД користувача: {spot.user_id}:\n"
+    info += f"ІД точки: {spot.chat_id}:\n"
     info += _get_settings(spot)
     info += "\nСтатуси:\n"
     info += f"Стан: {spot.last_state}\n"
-    info += f"Остання зміна стану (UTC): {spot.last_ts}\n"
-    info += f"Останній виклик слухача (UTC): {spot.last_heared_ts}\n"
+    info += f"Остання зміна стану: {spot.last_ts}\n"
+    info += f"Останній виклик слухача: {spot.last_heared_ts}\n"
     if spot.endpoint or spot.headers:
         info += "*Extra*:\n"
         info += f"Ендпоінт {str(spot.endpoint)}:\n"

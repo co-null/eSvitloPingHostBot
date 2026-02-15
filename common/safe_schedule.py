@@ -1,9 +1,9 @@
-import logging
+from common.logger import init_logger
 from traceback import format_exc
 import datetime
 from schedule import Scheduler
 
-logger = logging.getLogger('schedule')
+logger = init_logger('schedule', './logs/esvitlo.log')
 
 class SafeScheduler(Scheduler):
     """

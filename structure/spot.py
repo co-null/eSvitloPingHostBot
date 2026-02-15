@@ -36,6 +36,7 @@ class Spot:
         self.__to_telegram      = (spot_from_db.to_telegram == 1)
         self.__ts_ins           = spot_from_db.ts_ins
         self.__ts_upd           = spot_from_db.ts_upd
+        self.__is_active        = True if spot_from_db.is_active else (spot_from_db.is_active == 1)
 
         spot_state_from_db = self.__session.query(models.SpotState).filter_by(chat_id=self.__chat_id).first()
         self.__last_state     = spot_state_from_db.last_state
@@ -72,6 +73,7 @@ class Spot:
         self.__last_state:str        = None
         self.__last_ts:datetime      = None
         self.__last_heared_ts:datetime = None
+        self.__is_active:bool        = True
 
         spot_from_db = self.__session.query(models.Spot).filter_by(chat_id=in_chat_id).first()
         if not spot_from_db:
@@ -102,22 +104,18 @@ class Spot:
     
     @property
     def ip_address(self):
-        #self.__get_from_db()
         return self.__ip_address
     
     @property
     def listener(self):
-        #self.__get_from_db()
         return self.__listener
     
     @property
     def label(self):
-        #self.__get_from_db()
         return self.__label
     
     @property
     def name(self):
-        #self.__get_from_db()
         if self.__label and not self.__label == '': name = self.__label
         elif self.__ip_address and not self.__ip_address == '': name = self.__ip_address
         else: name = 'Без назви'
@@ -125,7 +123,6 @@ class Spot:
 
     @property
     def channel_id(self):
-        #self.__get_from_db()
         return self.__channel_id
     
     @property
@@ -152,97 +149,78 @@ class Spot:
     
     @property
     def to_bot(self):
-        #self.__get_from_db()
         return self.__to_bot
     
     @property
     def to_channel(self):
-        #self.__get_from_db()
         return self.__to_channel
     
     @property
     def ping_job(self):
-        #self.__get_from_db()
         return self.__ping_job
     
     @property
     def awaiting_ip(self):
-        #self.__get_from_db()
         return self.__awaiting_ip
     
     @property
     def awaiting_label(self):
-        #self.__get_from_db()
-        return self.__awaiting_label
+         return self.__awaiting_label
     
     @property
     def awaiting_channel(self):
-        #self.__get_from_db()
         return self.__awaiting_channel
     
     @property
     def awaiting_city(self):
-        #self.__get_from_db()
         return self.__awaiting_city
     
     @property
     def awaiting_group(self):
-        #self.__get_from_db()
         return self.__awaiting_group
     
     @property
     def has_schedule(self):
-        #self.__get_from_db()
         return self.__has_schedule
     
     @property
     def city(self):
-        #self.__get_from_db()
         return self.__city
     
     @property
     def group(self):
-        #self.__get_from_db()
         return self.__group
     
     @property
     def endpoint(self):
-        #self.__get_from_db()
         return self.__endpoint
     
     @property
     def headers(self):
-        #self.__get_from_db()
         return self.__headers
     
     @property
     def api_details(self):
-        #self.__get_from_db()
         return self.__api_details
     
     @property
     def interval(self):
-        #self.__get_from_db()
         return self.__interval
     
     @property
     def to_remind(self):
-        #self.__get_from_db()
         return self.__to_remind
 
     @property
     def to_telegram(self):
-        #self.__get_from_db()
         return self.__to_telegram
    
     @property
     def ts_ins(self):
-        #self.__get_from_db()
         return self.__ts_ins
     
     @property
     def ts_upd(self):
-        self.__get_from_db()
         return self.__ts_upd
     
     @property
@@ -259,6 +237,10 @@ class Spot:
     def last_heared_ts(self):
         self.__get_from_db()
         return self.__last_heared_ts
+    
+    @property
+    def is_active(self):
+        return self.__is_active
     
     @property
     def is_multipost(self):
@@ -474,6 +456,14 @@ class Spot:
         if value and not spotstate_to_update.last_heared_ts == value:
             journal_to_update.last_heared_ts   = value
             spotstate_to_update.last_heared_ts = value
+            self.__session.commit()
+
+    @is_active.setter
+    def is_active(self, value: bool):
+        spot_to_update = self.__get_spot_for_update()
+        if not spot_to_update.is_active == (1 if value else 0):
+            spot_to_update.is_active = (1 if value else 0)
+            spot_to_update.ts_upd = datetime.now(TIMEZONE)
             self.__session.commit()
 
     def new_state(self, value: str):
