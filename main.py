@@ -233,7 +233,7 @@ def send():
     if not sender:
         return jsonify({"error": "chat_id is required"}), 400
     try:
-        _heard(sender, spot)
+        _heard(sender, spot, bot)
         return jsonify({"status": "OK", "time": ts}), 200
     except Exception as e:
         return jsonify({"error": 'Unexpected error'}), 500
