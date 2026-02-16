@@ -135,7 +135,7 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     message  = utils.get_text_safe_to_markdown(message)
     utils._sender(spot, message, bot, 'ping_now()', True)
 
-def _heard(user_id: str, chat_id: str) -> None:
+def _heard(user_id: str, chat_id: str, bot:Bot) -> None:
     msg = None
     user = Userdb(int(user_id)).get()
     if not user: return
@@ -147,4 +147,4 @@ def _heard(user_id: str, chat_id: str) -> None:
             msg  = utils.get_text_safe_to_markdown(msg)
             spot.new_state(cfg.ALIVE)
         spot.refresh()
-        utils._sender(spot, msg, f'_heard({user_id},{chat_id})') 
+        utils._sender(spot, msg, bot, f'_heard({user_id},{chat_id})') 
