@@ -1,7 +1,7 @@
 from common.logger import init_logger
 from telegram import Update, Bot
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler
-from telegram import Update, Bot, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, constants
+from telegram.ext import CallbackContext
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from bot_secrets import ADMIN_ID
 import common.utils as utils, config as cfg
 from verbiages import get_state_msg
