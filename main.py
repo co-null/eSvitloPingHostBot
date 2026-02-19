@@ -1,4 +1,4 @@
-import bot_secrets, config as cfg, common.utils as utils, verbiages
+import bot_secrets, config as cfg, verbiages
 from user_settings import user_jobs, listeners
 from actions import _ping, _listen, _heard, ping_now
 from structure.user import *
@@ -11,16 +11,18 @@ from telegram.utils.request import Request as TRequest
 import schedule, time, threading, pytz, json
 from common.safe_schedule import SafeScheduler, scheduler
 from common.logger import init_logger
-from common.utils import reply_md, edit_md, _sender, get_text_safe_to_markdown, get_key_safe
+from common.utils import reply_md
 import menu.settings as settings, menu.tools as tools, menu.help as help
 from datetime import datetime
-from flask import Flask, request, jsonify
-
+from flask import Flask, request, jsonify, send_file
+import os
 
 # Create a logger
 logger = init_logger('eSvitlo-main', './logs/esvitlo.log')
 
-PARSE_MODE = constants.PARSEMODE_MARKDOWN_V2
+PARSE_MODE     = constants.PARSEMODE_MARKDOWN_V2
+BINARY_VERSION = 'app_binary/current_version'
+BINARY_FILE    = 'app_binary/install'
 # Initialize Flask app
 app = Flask(__name__)
 
@@ -290,6 +292,30 @@ def off():
     try:
         _ping(sender, spot, bot, cfg.OFF)
         return jsonify({"status": "OK", "time": ts}), 200
+    except Exception as e:
+        return jsonify({"error": 'Unexpected error'}), 500
+
+@app.route('/update', methods=['GET'])
+def update():
+    secret_header = request.headers.get('X-eSvitlo-app')
+    if os.path.exists(BINARY_VERSION):
+        with open(BINARY_VERSION, 'r') as file:
+            current_version = file.readline(-1)
+            print(current_version)
+    if not secret_header:
+        return jsonify({"error": "Service not found"}), 403
+    if current_version:
+        return jsonify({"status": "OK", "version":current_version }), 200
+    else:
+        return jsonify({"error": 'Unexpected error'}), 500
+
+@app.route('/upgrade', methods=['GET'])
+def upgrade():
+    secret_header = request.headers.get('X-eSvitlo-app')
+    if not secret_header:
+        return jsonify({"error": "Service not found"}), 403
+    try:
+        return send_file(BINARY_FILE, as_attachment=True)
     except Exception as e:
         return jsonify({"error": 'Unexpected error'}), 500
     
