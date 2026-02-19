@@ -21,8 +21,8 @@ import os
 logger = init_logger('eSvitlo-main', './logs/esvitlo.log')
 
 PARSE_MODE     = constants.PARSEMODE_MARKDOWN_V2
-BINARY_VERSION = 'app_binary/current_version'
-BINARY_FILE    = 'app_binary/install'
+BINARY_VERSION = 'app_binary/version.json'
+BINARY_FILE    = 'app_binary/index.ino.bin'
 # Initialize Flask app
 app = Flask(__name__)
 
@@ -300,7 +300,7 @@ def update():
     secret_header = request.headers.get('X-eSvitlo-app')
     if os.path.exists(BINARY_VERSION):
         with open(BINARY_VERSION, 'r') as file:
-            current_version = file.readline(-1)
+            current_version = json.load(file)
             print(current_version)
     if not secret_header:
         return jsonify({"error": "Service not found"}), 403
