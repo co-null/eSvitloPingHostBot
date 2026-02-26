@@ -22,11 +22,11 @@ def get_system() -> str:
 def check_ip(ip: str) -> bool:
     if get_system() == 'windows':
         cmd = "ping -n 1 " + ip
-    else: cmd = "ping -c 1 " + ip
+    else: cmd = "ping -c 1 -w 2 -W 5 " + ip
     status = subprocess.getstatusoutput(cmd)
     if not status[0] == 0:
         for i in range(1, 2):
-            time.sleep(1)
+            time.sleep(3)
             status = subprocess.getstatusoutput(cmd)
             if status[0]==0: return True
     return status[0]==0
