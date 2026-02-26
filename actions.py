@@ -31,6 +31,7 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
             if spot.last_state and status==spot.last_state: changed = False
             else: changed = True
             if changed or immediately:
+                logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
                 msg = get_state_msg(spot, status, immediately)
             else: msg = ""
             if changed: spot.new_state(status)
