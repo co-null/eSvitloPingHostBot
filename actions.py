@@ -4,11 +4,10 @@ from telegram.ext import CallbackContext
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from bot_secrets import ADMIN_ID
 import common.utils as utils, config as cfg
-from verbiages import get_state_msg
-from structure.spot import Spot
+from verbiages import get_state_msg, get_battery_state_msg
+from structure.spot import Spot, Invertor
 from structure.user import Userdb
-from common.safe_schedule import SafeScheduler, scheduler
-from user_settings import user_jobs, listeners
+from common.schedule import delete_ping_job, delete_listener_job
 from datetime import datetime
 import pytz, json
 
@@ -16,50 +15,65 @@ import pytz, json
 logger = init_logger('eSvitlo-actions', './logs/esvitlo.log')
 
 def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> utils.PingResult:
-    if force_state:
-        status = force_state
-        if spot.last_state and status==spot.last_state: changed = False
-        else: changed = True
-        msg = get_state_msg(spot, status, True)
+    def _changed(spot: Spot, status) -> bool:
+        return False if spot.last_state and status==spot.last_state else True
+
+    def _spot_update(spot: Spot, changed:bool, status):
         if changed: spot.new_state(status)
         if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))
+
+    if force_state and not spot.endpoint:
+        status = force_state
+        changed = _changed(spot, status)
+        msg = get_state_msg(spot, status, True)
+        _spot_update(spot, changed, status)
         return utils.PingResult(changed, msg)
-    elif spot.ip_address:
-        port_pos =  spot.ip_address.find(':')
-        if port_pos == -1:
-            status = utils.get_ip_status(spot.ip_address)
-            if spot.last_state and status==spot.last_state: changed = False
-            else: changed = True
-            if changed or immediately:
-                logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
-                msg = get_state_msg(spot, status, immediately)
-            else: msg = ""
-            if changed: spot.new_state(status)
-            if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
-            return utils.PingResult(changed, msg)
-        else:
-            host = spot.ip_address[:port_pos]
-            port = spot.ip_address[port_pos+1:]
-            status = utils.check_port(host, port)
-            if spot.last_state and status==spot.last_state: changed = False
-            else: changed = True
-            if changed or immediately:
-                logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
-                msg = get_state_msg(spot, status, immediately)
-            else: msg = ""
-            if changed: spot.new_state(status)
-            if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
-            return utils.PingResult(changed, msg)
-    elif not spot.ip_address and spot.endpoint:
-        status = utils.check_custom_api1(spot.endpoint, spot.headers, spot.api_details)
-        if spot.last_state and status==spot.last_state: changed = False
-        else: changed = True
+    elif spot.ip_address and not spot.port:
+        status = utils.get_ip_status(spot.ip_address)
+        changed = _changed(spot, status)
+        if changed or immediately:
+            logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
+            msg = get_state_msg(spot, status, immediately)
+        else: msg = ""
+        _spot_update(spot, changed, status)
+        return utils.PingResult(changed, msg)
+    elif spot.ip_address and spot.port:
+        status = utils.check_port(spot.ip_address, spot.port)
+        changed = _changed(spot, status)
+        if changed or immediately:
+            logger.info(f'Pinging: User {spot.user_id} - status: {status}, changed:{changed}')
+            msg = get_state_msg(spot, status, immediately)
+        else: msg = ""
+        _spot_update(spot, changed, status)
+        return utils.PingResult(changed, msg)
+    elif not spot.ip_address and spot.endpoint == 'custom_api1':
+        status = utils.check_custom_api1(spot.headers, spot.api_details)
+        changed = _changed(spot, status)
         if changed or immediately:
             logger.info(f'API call: User {spot.user_id} - status: {status}, changed:{changed}')
             msg = get_state_msg(spot, status, immediately)
         else: msg = ""
-        if changed: spot.new_state(status)
-        if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))  
+        _spot_update(spot, changed, status)
+        return utils.PingResult(changed, msg)
+    elif not spot.ip_address and spot.endpoint == 'invertor_api1':
+        battery = Invertor(spot.chat_id)
+        status = utils.check_invertor(spot, utils._check_invertor1)
+        changed = _changed(spot, status.status)
+        msg = get_battery_state_msg(spot, battery, status, immediately)
+        if changed or immediately:
+            logger.info(f'API invertor 1 call: User {spot.user_id} - status: {status.status}, changed:{changed}')
+        _spot_update(spot, changed, status.status)
+        battery.battery_lvl = status.battery
+        return utils.PingResult(changed, msg)
+    elif not spot.ip_address and spot.endpoint == 'invertor_api2':
+        battery = Invertor(spot.chat_id)
+        status = utils.check_invertor(spot, utils._check_invertor2)
+        changed = _changed(spot, status.status)
+        msg = get_battery_state_msg(spot, battery, status, immediately)
+        if changed or immediately:
+            logger.info(f'API invertor 2 call: User {spot.user_id} - status: {status.status}, changed:{changed}')
+        _spot_update(spot, changed, status.status)
+        battery.battery_lvl = status.battery
         return utils.PingResult(changed, msg)
     else: utils.PingResult(False, "")
 
@@ -70,9 +84,7 @@ def _ping(user_id:int, chat_id:str, bot:Bot, force_state:str = None):
     spot = Spot(user.user_id, chat_id).get()
     if not spot.ip_address and not spot.endpoint:
         spot.ping_job = None
-        if spot.chat_id in user_jobs.keys():
-            scheduler.cancel_job(user_jobs[spot.chat_id])
-            del user_jobs[spot.chat_id]
+        delete_ping_job(spot)
     try:
         result = _ping_ip(spot, False, force_state)
         msg    = utils.get_text_safe_to_markdown(result.message)
@@ -132,7 +144,12 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     if not spot.ip_address and not spot.listener and not spot.endpoint:
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
-    message = get_state_msg(spot, spot.last_state, True)
+    if not spot.ip_address and spot.endpoint == 'invertor_api1':
+        battery = Invertor(spot.chat_id)
+        status = utils.InvertorStatus(spot.last_state, battery.battery_lvl)
+        message = get_battery_state_msg(spot, battery, status, True)
+    else:
+        message = get_state_msg(spot, spot.last_state, True)
     message  = utils.get_text_safe_to_markdown(message)
     utils._sender(spot, message, bot, 'ping_now()', True)
 

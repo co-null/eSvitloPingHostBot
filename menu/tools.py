@@ -80,8 +80,8 @@ def _get_user(update: Update, context: CallbackContext, bot: Bot, user_id: int) 
     for spot_m in spots:
         i += 1
         spot = Spot(spot_m.user_id, spot_m.chat_id).get()
-        msg += verbiages.get_full_info(spot)
         if not i == 1: msg += '\n' 
+        msg += verbiages.get_full_info(spot)
     session.close()
     reply_md(msg, update, bot, reply_markup)
 

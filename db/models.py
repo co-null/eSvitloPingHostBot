@@ -1,5 +1,5 @@
 # db/models.py
-from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, String, TIMESTAMP, DECIMAL, ForeignKey
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import PrimaryKeyConstraint
@@ -75,3 +75,8 @@ class SpotNotification(Base):
     next_notification_ts = Column(TIMESTAMP)
     next_event_ts        = Column(TIMESTAMP)
     __table_args__ = (PrimaryKeyConstraint('chat_id', 'notification_type'),)
+
+class SpotInvertor(Base):
+    __tablename__ = 'spot_invertor'
+    chat_id        = Column(String, ForeignKey('spot.chat_id'), primary_key=True)
+    battery_lvl    = Column(DECIMAL)

@@ -1,7 +1,7 @@
 from common.logger import init_logger
 import config as cfg, verbiages
-from common.utils import reply_md, edit_md, get_system, get_text_safe_to_markdown
-from common.safe_schedule import SafeScheduler, scheduler
+from common.utils import reply_md, edit_md, get_system, parse_invertor1, parse_invertor2
+from common.schedule import cancel_ping_job, cancel_listener_job, delete_ping_job, delete_listener_job, recreate_job
 from user_settings import user_jobs, listeners
 from actions import _ping, _listen
 import json
@@ -28,7 +28,7 @@ def get_link(user_id, spot_no, chat_id) -> str:
         link += f"*Для налаштування слухача для точки {spot_no} робіть виклики* на {link_base}&spot_id={chat_id}"
     return link
 
-def settings(update: Update, context: CallbackContext, args:str = None) -> None:
+def settings(update: Update, context: CallbackContext, bot: Bot, args:str = None) -> None:
     user_id = update.effective_chat.id
     user    = Userdb(int(user_id)).get()
     if not user:
@@ -73,12 +73,14 @@ def settings_spot(update: Update, context: CallbackContext, args: str) -> None:
     hear = '🩺'
     stop = '❌'
     button_set = []
-    button_set.append([InlineKeyboardButton('📡 IP', 
-                                            callback_data=json.dumps({'cmd':'sIp', 'uid':spot.user_id, 'cid':spot.chat_id})),
-                       InlineKeyboardButton('🪧 Назва', 
+    button_set.append([InlineKeyboardButton('🪧 Назва', 
                                             callback_data=json.dumps({'cmd':'sLabel', 'uid':spot.user_id, 'cid':spot.chat_id})),
                        InlineKeyboardButton('📢 Канал', 
                                             callback_data=json.dumps({'cmd':'sChannel', 'uid':spot.user_id, 'cid':spot.chat_id}))])
+    button_set.append([InlineKeyboardButton('📡 IP', 
+                                            callback_data=json.dumps({'cmd':'sIp', 'uid':spot.user_id, 'cid':spot.chat_id})),
+                       InlineKeyboardButton('🪄 API', 
+                                            callback_data=json.dumps({'cmd':'sAPI', 'uid':spot.user_id, 'cid':spot.chat_id}))])
     button_set.append([InlineKeyboardButton(f'{on if spot.to_bot else off} в бот', 
                                             callback_data=json.dumps({'cmd':'sToBot', 'uid':spot.user_id, 'cid':spot.chat_id})),
                        InlineKeyboardButton(f'{on if spot.to_channel else off} в канал', 
@@ -124,8 +126,7 @@ def set_ip(update: Update, context: CallbackContext, bot: Bot, args: str) -> Non
         spot.ip_address = None
         spot.ping_job   = None
         reply_md('ІР адресу видалено', update, bot, reply_markup=reply_markup)
-        if spot.chat_id in user_jobs.keys():
-            scheduler.cancel_job(user_jobs[spot.chat_id])
+        delete_ping_job(spot)
         return
     elif entered == '-' and not spot.ip_address:
         reply_md('Скасовано', update, bot)
@@ -141,6 +142,100 @@ def set_ip(update: Update, context: CallbackContext, bot: Bot, args: str) -> Non
         reply_md(f'Вказано IP адресу {spot.ip_address}', 
                  update, bot, reply_markup=reply_markup)
 
+def ask_set_api(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
+    query = update.callback_query
+    context.user_data['temporary_callback'] = args
+    context.user_data['requestor'] = 'ask_set_api'
+    params = json.loads(args)
+    user_id = params['uid']
+    spot_id = params['cid']
+    spot    = Spot(user_id, spot_id).get()
+    buttons = [
+        [InlineKeyboardButton('🪄 API Dessmonitor', callback_data=json.dumps({'cmd':'iAPI1', 'uid':spot.user_id, 'cid':spot.chat_id}))],
+        [InlineKeyboardButton('🪄 API PVbutler', callback_data=json.dumps({'cmd':'iAPI2', 'uid':spot.user_id, 'cid':spot.chat_id}))],
+        [InlineKeyboardButton('⚙️🔙', callback_data=json.dumps({'cmd':'ed_spot', 'uid':spot.user_id, 'cid':spot.chat_id}))]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    # Send message
+    query.edit_message_text(text="Оберіть API для налаштування", reply_markup=reply_markup)
+
+def ask_set_iapi1(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
+    query = update.callback_query
+    context.user_data['temporary_callback'] = args
+    context.user_data['requestor'] = 'ask_set_iapi1'
+    # Send message
+    query.edit_message_text(text=cfg.msg_invertor_api1_howto)
+
+def ask_set_iapi2(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
+    query = update.callback_query
+    context.user_data['temporary_callback'] = args
+    context.user_data['requestor'] = 'ask_set_iapi2'
+    # Send message
+    query.edit_message_text(text=cfg.msg_invertor_api2_howto)
+
+def set_iapi1(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
+    query = update.callback_query
+    context.user_data['temporary_callback'] = args
+    entered = update.message.text
+    params = json.loads(args)
+    user_id = params['uid']
+    spot_id = params['cid']
+    spot    = Spot(user_id, spot_id).get()
+    context.user_data['temporary_callback'] = None
+    context.user_data['requestor'] = None
+    callback_data=json.dumps({'cmd':'ed_spot', 'uid':spot.user_id, 'cid':spot.chat_id})
+    buttons = [[InlineKeyboardButton('🆗', callback_data=callback_data)]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    if entered == '-' and spot.endpoint:
+        spot.endpoint = None
+        spot.headers = None
+        reply_md('Налаштування API видалено', update, bot, reply_markup=reply_markup)
+    elif entered == '-' and not spot.endpoint:
+        reply_md('Скасовано', update, bot, reply_markup=reply_markup)
+    else:
+        try:
+            parse_invertor1(entered, spot)
+        except Exception as e:
+            logger.error(str(e))
+            reply_md(cfg.msg_badinput, update, bot, reply_markup=reply_markup)
+            return
+        spot.endpoint = 'invertor_api1'
+        spot.ip_address = None
+        spot.refresh()
+        reply_md(f'API Dessmonitor налаштовано', 
+                 update, bot, reply_markup=reply_markup)
+
+def set_iapi2(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
+    query = update.callback_query
+    context.user_data['temporary_callback'] = args
+    entered = update.message.text
+    params = json.loads(args)
+    user_id = params['uid']
+    spot_id = params['cid']
+    spot    = Spot(user_id, spot_id).get()
+    context.user_data['temporary_callback'] = None
+    context.user_data['requestor'] = None
+    callback_data=json.dumps({'cmd':'ed_spot', 'uid':spot.user_id, 'cid':spot.chat_id})
+    buttons = [[InlineKeyboardButton('🆗', callback_data=callback_data)]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    if entered == '-' and spot.endpoint:
+        spot.endpoint = None
+        spot.headers = None
+        reply_md('Налаштування API видалено', update, bot, reply_markup=reply_markup)
+    elif entered == '-' and not spot.endpoint:
+        reply_md('Скасовано', update, bot, reply_markup=reply_markup)
+    else:
+        try:
+            parse_invertor2(entered, spot)
+        except Exception as e:
+            logger.error(str(e))
+            reply_md(cfg.msg_badinput, update, bot, reply_markup=reply_markup)
+            return
+        spot.endpoint = 'invertor_api2'
+        spot.ip_address = None
+        spot.refresh()
+        reply_md(f'API PVbutler налаштовано', 
+                 update, bot, reply_markup=reply_markup)
+        
 def ask_set_label(update: Update, context: CallbackContext, bot: Bot, args: str) -> None:
     query = update.callback_query
     context.user_data['temporary_callback'] = args
@@ -264,9 +359,8 @@ def drop_spot(update: Update, context: CallbackContext, bot: Bot, args: str) -> 
         spot.to_bot = False
         spot.to_channel = False
         spot.ping_job = None
-        if spot.chat_id in user_jobs.keys():
-            scheduler.cancel_job(user_jobs[spot.chat_id])
-            del user_jobs[spot.chat_id]
+        delete_ping_job(spot)
+        delete_listener_job(spot)
         spot.refresh()
         reply_md(f'Видалено точку {spot.name}', 
                  update, bot, reply_markup=reply_markup)
@@ -320,25 +414,15 @@ def post_to_channel(update: Update, context: CallbackContext, bot: Bot, args: st
     edit_md(msg, update, reply_markup=reply_markup)
 
 def _start_ping(spot: Spot, bot: Bot) -> None:
-    # Stop any existing job before starting a new one
-    if spot.chat_id in user_jobs.keys():
-        scheduler.cancel_job(user_jobs[spot.chat_id])
-    # Schedule the ping job every min
-    if spot.ip_address and not spot.endpoint:
-        user_jobs[spot.chat_id] = scheduler.every(cfg.SCHEDULE_PING).\
-            minutes.do(_ping, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
-    elif spot.endpoint:
-        user_jobs[spot.chat_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).\
-            minutes.do(_ping, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
     spot.ping_job = 'scheduled'
+    spot.interval = cfg.SCHEDULE_PING if spot.ip_address else cfg.SCHEDULE_API
     spot.refresh()
+    recreate_job(spot, _ping, _listen, bot)
     # Initial ping immediately
     _ping(spot.user_id, spot.chat_id, bot)
 
 def _stop_ping(spot: Spot) -> None:
-    if spot.chat_id in user_jobs.keys():
-        scheduler.cancel_job(user_jobs[spot.chat_id])
-        del user_jobs[spot.chat_id]
+    delete_ping_job(spot)
     spot.ping_job = None
 
 def ping(update: Update, context: CallbackContext, bot:Bot, args:str = '{}') -> None:
@@ -369,20 +453,15 @@ def ping(update: Update, context: CallbackContext, bot:Bot, args:str = '{}') -> 
     edit_md(msg, update, reply_markup=reply_markup)
 
 def _start_listen(spot: Spot, bot: Bot):
-    # Stop any existing job before starting a new one
-    if spot.chat_id in listeners.keys():
-        scheduler.cancel_job(listeners[spot.chat_id])
-    # Schedule the listen job every min
-    listeners[spot.chat_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes\
-        .do(_listen, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
     spot.listener = True
+    spot.interval = cfg.SCHEDULE_LISTEN
+    spot.refresh()
+    recreate_job(spot, _ping, _listen, bot)
     # Initial check immediately
     _listen(spot.user_id, spot.chat_id, bot)
 
 def _stop_listen(spot: Spot):
-    if spot.chat_id in listeners.keys():
-        scheduler.cancel_job(listeners[spot.chat_id])
-        del listeners[spot.chat_id]
+    delete_listener_job(spot)
     spot.listener = False
 
 def listen(update: Update, context: CallbackContext, bot:Bot, args: str = '{}') -> None:
@@ -406,14 +485,3 @@ def listen(update: Update, context: CallbackContext, bot:Bot, args: str = '{}') 
         msg = cfg.msg_listeneroff
     spot.refresh()
     edit_md(msg, update, reply_markup=reply_markup)
-
-
-def get_user_params(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(cfg.msg_listparams)
-
-def set_user_param(update: Update, context: CallbackContext) -> None:
-    global sys_commands
-    chat_id = update.effective_chat.id
-    sys_commands[chat_id] = {}
-    sys_commands[chat_id]['ask_set_user_param'] = True
-    update.message.reply_text('Введіть команду:')
