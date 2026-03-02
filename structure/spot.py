@@ -1,8 +1,6 @@
 from config import TZ
 import pytz
-from db import models #import User, Spot, SpotState, SpotJournal
-#from .user import User
-#from .spot import Spot, SpotState, SpotJournal
+from db import models 
 from db.database import SessionMain
 from datetime import datetime
 
@@ -20,11 +18,11 @@ class Spot:
         self.__to_bot           = (spot_from_db.to_bot == 1)
         self.__to_channel       = (spot_from_db.to_channel == 1)
         self.__ping_job         = spot_from_db.ping_job
-        self.__awaiting_ip      = (spot_from_db.awaiting_ip == 1)
-        self.__awaiting_label   = (spot_from_db.awaiting_label == 1)
-        self.__awaiting_channel = (spot_from_db.awaiting_channel == 1)
-        self.__awaiting_city    = (spot_from_db.awaiting_city == 1)
-        self.__awaiting_group   = (spot_from_db.awaiting_group == 1)
+        # self.__awaiting_ip      = (spot_from_db.awaiting_ip == 1)
+        # self.__awaiting_label   = (spot_from_db.awaiting_label == 1)
+        # self.__awaiting_channel = (spot_from_db.awaiting_channel == 1)
+        # self.__awaiting_city    = (spot_from_db.awaiting_city == 1)
+        # self.__awaiting_group   = (spot_from_db.awaiting_group == 1)
         self.__has_schedule     = (spot_from_db.has_schedule == 1)
         self.__city             = spot_from_db.city
         self.__group            = spot_from_db.sch_group
@@ -54,11 +52,11 @@ class Spot:
         self.__to_bot:bool           = True
         self.__to_channel:bool       = False
         self.__ping_job:str          = None
-        self.__awaiting_ip:bool      = False
-        self.__awaiting_label:bool   = False
-        self.__awaiting_channel:bool = False
-        self.__awaiting_city:bool    = False
-        self.__awaiting_group:bool   = False
+        # self.__awaiting_ip:bool      = False
+        # self.__awaiting_label:bool   = False
+        # self.__awaiting_channel:bool = False
+        # self.__awaiting_city:bool    = False
+        # self.__awaiting_group:bool   = False
         self.__has_schedule:bool     = False
         self.__city:str              = None
         self.__group:str             = None
@@ -104,7 +102,23 @@ class Spot:
     
     @property
     def ip_address(self):
-        return self.__ip_address
+        if self.__ip_address:
+            port_pos =  self.__ip_address.find(':')
+            if port_pos == -1:
+                return self.__ip_address
+            else:
+                return self.__ip_address[:port_pos]
+        else: return None
+    
+    @property
+    def port(self):
+        if self.__ip_address:
+            port_pos =  self.__ip_address.find(':')
+            if port_pos == -1:
+                return None
+            else:
+                return self.__ip_address[port_pos+1:]
+        else: return None
     
     @property
     def listener(self):
@@ -159,25 +173,25 @@ class Spot:
     def ping_job(self):
         return self.__ping_job
     
-    @property
-    def awaiting_ip(self):
-        return self.__awaiting_ip
+    # @property
+    # def awaiting_ip(self):
+    #     return self.__awaiting_ip
     
-    @property
-    def awaiting_label(self):
-         return self.__awaiting_label
+    # @property
+    # def awaiting_label(self):
+    #      return self.__awaiting_label
     
-    @property
-    def awaiting_channel(self):
-        return self.__awaiting_channel
+    # @property
+    # def awaiting_channel(self):
+    #     return self.__awaiting_channel
     
-    @property
-    def awaiting_city(self):
-        return self.__awaiting_city
+    # @property
+    # def awaiting_city(self):
+    #     return self.__awaiting_city
     
-    @property
-    def awaiting_group(self):
-        return self.__awaiting_group
+    # @property
+    # def awaiting_group(self):
+    #     return self.__awaiting_group
     
     @property
     def has_schedule(self):
@@ -315,45 +329,45 @@ class Spot:
             spot_to_update.ts_upd = datetime.now(TIMEZONE)
             self.__session.commit()
 
-    @awaiting_ip.setter
-    def awaiting_ip(self, value: bool):
-        spot_to_update = self.__get_spot_for_update()
-        if not spot_to_update.awaiting_ip == (1 if value else 0):
-            spot_to_update.awaiting_ip = (1 if value else 0)
-            spot_to_update.ts_upd = datetime.now(TIMEZONE)
-            self.__session.commit()
+    # @awaiting_ip.setter
+    # def awaiting_ip(self, value: bool):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     if not spot_to_update.awaiting_ip == (1 if value else 0):
+    #         spot_to_update.awaiting_ip = (1 if value else 0)
+    #         spot_to_update.ts_upd = datetime.now(TIMEZONE)
+    #         self.__session.commit()
 
-    @awaiting_label.setter
-    def awaiting_label(self, value: bool):
-        spot_to_update = self.__get_spot_for_update()
-        if not spot_to_update.awaiting_label == (1 if value else 0):
-            spot_to_update.awaiting_label = (1 if value else 0)
-            spot_to_update.ts_upd = datetime.now(TIMEZONE)
-            self.__session.commit()
+    # @awaiting_label.setter
+    # def awaiting_label(self, value: bool):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     if not spot_to_update.awaiting_label == (1 if value else 0):
+    #         spot_to_update.awaiting_label = (1 if value else 0)
+    #         spot_to_update.ts_upd = datetime.now(TIMEZONE)
+    #         self.__session.commit()
 
-    @awaiting_channel.setter
-    def awaiting_channel(self, value: bool):
-        spot_to_update = self.__get_spot_for_update()
-        if not spot_to_update.awaiting_channel == (1 if value else 0):
-            spot_to_update.awaiting_channel = (1 if value else 0)
-            spot_to_update.ts_upd = datetime.now(TIMEZONE)
-            self.__session.commit()
+    # @awaiting_channel.setter
+    # def awaiting_channel(self, value: bool):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     if not spot_to_update.awaiting_channel == (1 if value else 0):
+    #         spot_to_update.awaiting_channel = (1 if value else 0)
+    #         spot_to_update.ts_upd = datetime.now(TIMEZONE)
+    #         self.__session.commit()
 
-    @awaiting_city.setter
-    def awaiting_city(self, value: bool):
-        spot_to_update = self.__get_spot_for_update()
-        if not spot_to_update.awaiting_city == (1 if value else 0):
-            spot_to_update.awaiting_city = (1 if value else 0)
-            spot_to_update.ts_upd = datetime.now(TIMEZONE)
-            self.__session.commit()
+    # @awaiting_city.setter
+    # def awaiting_city(self, value: bool):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     if not spot_to_update.awaiting_city == (1 if value else 0):
+    #         spot_to_update.awaiting_city = (1 if value else 0)
+    #         spot_to_update.ts_upd = datetime.now(TIMEZONE)
+    #         self.__session.commit()
 
-    @awaiting_group.setter
-    def awaiting_group(self, value: bool):
-        spot_to_update = self.__get_spot_for_update()
-        if not spot_to_update.awaiting_group == (1 if value else 0):
-            spot_to_update.awaiting_group = (1 if value else 0)
-            spot_to_update.ts_upd = datetime.now(TIMEZONE)
-            self.__session.commit()
+    # @awaiting_group.setter
+    # def awaiting_group(self, value: bool):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     if not spot_to_update.awaiting_group == (1 if value else 0):
+    #         spot_to_update.awaiting_group = (1 if value else 0)
+    #         spot_to_update.ts_upd = datetime.now(TIMEZONE)
+    #         self.__session.commit()
 
     @has_schedule.setter
     def has_schedule(self, value: bool):
@@ -493,56 +507,100 @@ class Spot:
         spotstate_to_update.last_state = value
         self.__session.commit()
 
-    def toggle_awaiting_ip(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 1
-        spot_to_update.awaiting_label   = 0
-        spot_to_update.awaiting_channel = 0
-        spot_to_update.awaiting_city    = 0
-        spot_to_update.awaiting_group   = 0
-        self.__session.commit()
+    # def toggle_awaiting_ip(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 1
+    #     spot_to_update.awaiting_label   = 0
+    #     spot_to_update.awaiting_channel = 0
+    #     spot_to_update.awaiting_city    = 0
+    #     spot_to_update.awaiting_group   = 0
+    #     self.__session.commit()
 
-    def toggle_awaiting_label(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 0
-        spot_to_update.awaiting_label   = 1
-        spot_to_update.awaiting_channel = 0
-        spot_to_update.awaiting_city    = 0
-        spot_to_update.awaiting_group   = 0
-        self.__session.commit()
+    # def toggle_awaiting_label(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 0
+    #     spot_to_update.awaiting_label   = 1
+    #     spot_to_update.awaiting_channel = 0
+    #     spot_to_update.awaiting_city    = 0
+    #     spot_to_update.awaiting_group   = 0
+    #     self.__session.commit()
 
-    def toggle_awaiting_channel(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 0
-        spot_to_update.awaiting_label   = 0
-        spot_to_update.awaiting_channel = 1
-        spot_to_update.awaiting_city    = 0
-        spot_to_update.awaiting_group   = 0
-        self.__session.commit()
+    # def toggle_awaiting_channel(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 0
+    #     spot_to_update.awaiting_label   = 0
+    #     spot_to_update.awaiting_channel = 1
+    #     spot_to_update.awaiting_city    = 0
+    #     spot_to_update.awaiting_group   = 0
+    #     self.__session.commit()
 
-    def toggle_awaiting_city(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 0
-        spot_to_update.awaiting_label   = 0
-        spot_to_update.awaiting_channel = 0
-        spot_to_update.awaiting_city    = 1
-        spot_to_update.awaiting_group   = 0
-        self.__session.commit()
+    # def toggle_awaiting_city(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 0
+    #     spot_to_update.awaiting_label   = 0
+    #     spot_to_update.awaiting_channel = 0
+    #     spot_to_update.awaiting_city    = 1
+    #     spot_to_update.awaiting_group   = 0
+    #     self.__session.commit()
 
-    def toggle_awaiting_group(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 0
-        spot_to_update.awaiting_label   = 0
-        spot_to_update.awaiting_channel = 0
-        spot_to_update.awaiting_city    = 0
-        spot_to_update.awaiting_group   = 1
-        self.__session.commit()
+    # def toggle_awaiting_group(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 0
+    #     spot_to_update.awaiting_label   = 0
+    #     spot_to_update.awaiting_channel = 0
+    #     spot_to_update.awaiting_city    = 0
+    #     spot_to_update.awaiting_group   = 1
+    #     self.__session.commit()
 
-    def toggle_nowait(self):
-        spot_to_update = self.__get_spot_for_update()
-        spot_to_update.awaiting_ip      = 0
-        spot_to_update.awaiting_label   = 0
-        spot_to_update.awaiting_channel = 0
-        spot_to_update.awaiting_city    = 0
-        spot_to_update.awaiting_group   = 0
-        self.__session.commit()
+    # def toggle_nowait(self):
+    #     spot_to_update = self.__get_spot_for_update()
+    #     spot_to_update.awaiting_ip      = 0
+    #     spot_to_update.awaiting_label   = 0
+    #     spot_to_update.awaiting_channel = 0
+    #     spot_to_update.awaiting_city    = 0
+    #     spot_to_update.awaiting_group   = 0
+    #     self.__session.commit()
+
+
+class Invertor:
+    def __get_from_db(self):
+            invertor_from_db    = self.__session.query(models.SpotInvertor).filter_by(chat_id=self.__chat_id).first()
+            self.__chat_id      = invertor_from_db.chat_id
+            self.__battery_lvl  = invertor_from_db.battery_lvl
+
+    def __init__(self, in_chat_id: str):
+        self.__session      = SessionMain()
+        self.__chat_id      = in_chat_id
+        self.__battery_lvl  = float('99.9')
+        invertor_from_db = self .__session.query(models.SpotInvertor).filter_by(chat_id=self.__chat_id).first()
+        if not invertor_from_db:
+            new_invertor = models.SpotInvertor(chat_id=in_chat_id, battery_lvl=float('99.9'))
+            self.__session.add(new_invertor)
+            self.__session.commit()
+        self.__get_from_db()
+
+    def __del__(self):
+        SessionMain.remove()
+
+    def __get_invertor_for_update(self):
+        return self.__session.query(models.SpotInvertor).filter_by(chat_id=self.__chat_id).first()
+
+    def get(self):
+        self.__get_from_db()
+        return self
+
+    @property
+    def chat_id(self):
+        return self.__chat_id
+    
+    @property
+    def battery_lvl(self):
+        self.__get_from_db()
+        return float(self.__battery_lvl)
+     
+    @battery_lvl.setter
+    def battery_lvl(self, value: float):
+        invertor_for_update = self.__get_invertor_for_update()
+        if not invertor_for_update.battery_lvl == value:
+            invertor_for_update.battery_lvl = value
+            self.__session.commit()

@@ -1,3 +1,4 @@
+from common.logger import init_logger
 import config as cfg
 import user_settings as us
 from structure.user import *
@@ -6,29 +7,10 @@ from structure.spot import *
 #from blackout_schedule import BO_GROUPS, BO_GROUPS_TEXT, BO_CITIES, get_windows_analysis
 import common.utils as utils
 from datetime import datetime, timedelta
-import pytz, logging
-from logging.handlers import TimedRotatingFileHandler
+import pytz
 
 # Create a logger
-logger = logging.getLogger('eSvitlo-verbiages')
-logger.setLevel(logging.DEBUG)
-
-# Create a file handler
-fh = TimedRotatingFileHandler('./logs/esvitlo.log', encoding='utf-8', when="D", interval=1, backupCount=30)
-fh.setLevel(logging.INFO)
-
-# Create a console handler
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-
-# Create a formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-# Add handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = init_logger('eSvitlo-verbiages', './logs/esvitlo.log')
 
 TIMEZONE = pytz.timezone(cfg.TZ)
 
@@ -62,6 +44,8 @@ def _get_settings(spot: Spot) -> str:
     msg += f"Назва: {spot.name}\n" 
     if spot.ip_address: msg += f"IP адреса: {spot.ip_address}\n"
     else: msg += "IP адреса не вказана \n"
+    if spot.endpoint: msg += f"API: {utils.get_key_safe(cfg.api_list, spot.endpoint, 'не налаштовано')}\n"
+    else: msg += "API не налаштовано \n"
     if spot.ping_job: msg += cfg.msg_ippingon 
     else: msg += cfg.msg_ippingoff
     if spot.listener: msg += cfg.msg_listeneron
@@ -235,3 +219,68 @@ def get_notificatiom_tomorrow_schedule(schedule_tom):
         elif window['type'] == 'POSSIBLE_OUTAGE':
             message += f"⚠️ Сіра зона до *{window['end']:02}:00*\n"
     return message
+
+def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorStatus, immediately: bool = False) -> str:
+    def battery_level_verbiage() -> str:
+        return f"{'🔋' if status.battery >= 40.0 else '🪫'} Рівень заряду батарей: *{status.battery:.0f}%*\n"
+    
+    def battery_level_changed(old_level:float, new_level:float) -> bool:
+        if abs(new_level - old_level) < 1.0: return False # Minor changes
+        return True if int(new_level)%3 == 0 else False
+    
+    now_ts_short = datetime.now(TIMEZONE).strftime('%H:%M')
+    delta = datetime.now(TIMEZONE).replace(tzinfo=None) - spot.last_ts if spot.last_ts else timedelta(seconds=1)
+    msg     = ""
+    if spot.is_multipost:
+        msg += f"*{spot.name}*\n"
+    if not spot.last_state:
+        if spot.label and spot.label != '':
+            msg += f"{spot.label} тепер моніториться статус батареї\n"
+        else:
+            msg += "Моніториться статус батареї\n"
+        return
+    # turned on
+    if spot.last_state and status.status == cfg.ALIVE and spot.last_state != cfg.ALIVE:
+        msg += f"⚡️*{now_ts_short}* Юху! Батареї заряджаються!\n"
+        msg += battery_level_verbiage()
+        msg +=  "⏱ Час роботи від батарей *" + get_string_period(delta) + "*"
+
+    # turned off
+    elif spot.last_state and status.status == cfg.OFF and spot.last_state != cfg.OFF:
+        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову робота від батарей 😒\n"
+        msg += battery_level_verbiage()
+        msg +=  "⏱ Час роботи від мережі *" + get_string_period(delta) + "*"
+
+    # error
+    elif spot.last_state and status.status == cfg.ERR and spot.last_state != cfg.ERR:
+        msg += f"❗️*{now_ts_short}* Некоректний статус у відповіді, перевірте налаштування 😒\n"
+    
+    # instant
+    elif cfg.isPostOK == 'T' or immediately:
+        if status.status == cfg.ALIVE:
+            msg += cfg.msg_alive
+            msg += "\n" + "⏱ Час роботи від мережі *" + get_string_period(delta) + "*\n"
+            msg += battery_level_verbiage()
+        elif status.status == cfg.OFF:
+            msg += cfg.msg_blackout
+            msg += "\n" + "⏱ Час роботи від батарей *" + get_string_period(delta) + "*\n"
+            msg += battery_level_verbiage()
+        else:
+            msg += battery_level_verbiage()
+
+    # follow the battery state
+    elif spot.last_state and spot.last_state == status.status:
+        # Battery level changed
+        if battery_level_changed(battery.battery_lvl, status.battery):
+            if battery.battery_lvl >= 97.0 and status.battery > battery.battery_lvl: 
+                msg += "🔋 Батареї заряджено!\n"
+            elif status.battery >= 97.0: msg = ""
+            else: 
+                if status.status == cfg.ALIVE:
+                    msg += "⏱ Час роботи від мережі *" + get_string_period(delta) + "*\n"
+                elif status.status == cfg.OFF:
+                    msg += "⏱ Час роботи від батарей *" + get_string_period(delta) + "*\n"
+                msg += battery_level_verbiage()
+        else: msg = "" #make empty if any matched
+    else: msg = "" #make empty if any matched
+    return msg

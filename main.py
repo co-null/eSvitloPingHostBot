@@ -1,5 +1,4 @@
 import bot_secrets, config as cfg, verbiages
-from user_settings import user_jobs, listeners
 from actions import _ping, _listen, _heard, ping_now
 from structure.user import *
 from structure.spot import *
@@ -9,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandle
 from telegram import Update, Bot, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.utils.request import Request as TRequest
 import schedule, time, threading, pytz, json
-from common.safe_schedule import SafeScheduler, scheduler
+from common.schedule import recreate_job, scheduler
 from common.logger import init_logger
 from common.utils import reply_md
 import menu.settings as settings, menu.tools as tools, menu.help as help
@@ -27,7 +26,7 @@ BINARY_FILE    = 'app_binary/index.ino.bin'
 app = Flask(__name__)
 
 # Telegram bot initialization
-bot_request = TRequest(con_pool_size=8, connect_timeout=300)
+bot_request = TRequest(con_pool_size=8, connect_timeout=600)
 bot         = Bot(token=bot_secrets.BOT_TOKEN, request=bot_request)
 updater     = Updater(bot=bot, use_context=True)
 dispatcher  = updater.dispatcher
@@ -45,20 +44,7 @@ def start(update: Update, context: CallbackContext) -> None:
         session = SessionMain()
         spots = session.query(models.Spot).filter_by(user_id=user.user_id, is_active=1).order_by(models.Spot.chat_id).all()
         for spot in spots:
-            if spot.ping_job:
-                if spot.chat_id in user_jobs.keys():
-                    scheduler.cancel_job(user_jobs[spot.chat_id])
-                if spot.ip_address and not spot.endpoint:
-                    user_jobs[spot.chat_id] = scheduler.every(cfg.SCHEDULE_PING).\
-                        minutes.do(_ping, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
-                elif spot.endpoint:
-                    user_jobs[spot.chat_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).\
-                        minutes.do(_ping, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
-            if spot.listener:
-                if spot.chat_id in listeners.keys():
-                    scheduler.cancel_job(listeners[spot.chat_id])
-                listeners[spot.chat_id] = scheduler.every(cfg.SCHEDULE_LISTEN).minutes.\
-                    do(_listen, user_id=spot.user_id, chat_id=spot.chat_id, bot=bot)
+            recreate_job(spot, _ping, _listen, bot)
             #TODO Blackout shedule
             # if user.has_schedule:
             #     _gather_schedules()
@@ -112,6 +98,10 @@ def handle_input(update: Update, context: CallbackContext) -> None:
         tools.broadcast(update = update, context = context, bot=bot, args = callback)
     elif requestor == "ask_set_param": 
         tools.set_param(update = update, context = context, bot=bot, args = callback)
+    elif requestor == "ask_set_iapi1": 
+        settings.set_iapi1(update = update, context = context, bot=bot, args = callback)
+    elif requestor == "ask_set_iapi2": 
+        settings.set_iapi2(update = update, context = context, bot=bot, args = callback)
     else:
         return
 
@@ -124,23 +114,8 @@ def schedule_pings():
 session = SessionMain()
 spots = session.query(models.Spot).all()
 for cur_spot in spots:
-    try:
-        if cur_spot.ping_job:
-            if cur_spot.chat_id in user_jobs.keys():
-                scheduler.cancel_job(user_jobs[cur_spot.chat_id])
-            if cur_spot.ip_address and not cur_spot.endpoint:
-                user_jobs[cur_spot.chat_id] = scheduler.every(cfg.SCHEDULE_PING).\
-                    minutes.do(_ping, user_id=cur_spot.user_id, chat_id=cur_spot.chat_id, bot=bot)
-            elif cur_spot.endpoint:
-                user_jobs[cur_spot.chat_id] = scheduler.every(2*int(cfg.SCHEDULE_PING)).\
-                    minutes.do(_ping, user_id=cur_spot.user_id, chat_id=cur_spot.chat_id, bot=bot)
-        if cur_spot.listener:
-            if cur_spot.chat_id in listeners.keys():
-                scheduler.cancel_job(listeners[cur_spot.chat_id])
-            listeners[cur_spot.chat_id] = scheduler.every(cfg.SCHEDULE_LISTEN).\
-                minutes.do(_listen, user_id=cur_spot.user_id, chat_id=cur_spot.chat_id, bot=bot)
-    except Exception as e:
-        continue
+    spot = Spot(cur_spot.user_id, cur_spot.chat_id).get()
+    recreate_job(spot, _ping, _listen, bot)
 session.close()
 
 #TODO Blackout schedule
@@ -172,6 +147,12 @@ def button_callback(update: Update, context: CallbackContext) -> None:
         settings.ask_drop_spot(update = update, context = context, bot = bot, args = query.data)
     elif cmd == "sIp":
         settings.ask_set_ip(update = update, context = context, bot = bot, args = query.data)
+    elif cmd == "sAPI":
+        settings.ask_set_api(update = update, context = context, bot = bot, args = query.data)
+    elif cmd == "iAPI1":
+        settings.ask_set_iapi1(update = update, context = context, bot = bot, args = query.data)
+    elif cmd == "iAPI2":
+        settings.ask_set_iapi2(update = update, context = context, bot = bot, args = query.data)
     elif cmd == "sLabel":
         settings.ask_set_label(update = update, context = context, bot = bot, args = query.data)
     elif cmd == "sChannel":
@@ -189,7 +170,7 @@ def button_callback(update: Update, context: CallbackContext) -> None:
     elif cmd == "ping":
         ping_now(update = update, context = context, bot=bot, args = query.data)
     elif cmd == "settings":
-        settings.settings(update = update, context = context, args = query.data)
+        settings.settings(update = update, context = context, bot = bot, args = query.data)
     elif cmd == "tools":
         tools.tools(update = update, context = context, args = query.data)
     elif cmd == "gUser":
@@ -297,11 +278,12 @@ def off():
 
 @app.route('/update', methods=['GET'])
 def update():
+    current_version = None
     secret_header = request.headers.get('X-eSvitlo-app')
     if os.path.exists(BINARY_VERSION):
         with open(BINARY_VERSION, 'r') as file:
             current_version = json.load(file)
-            print(current_version)
+            #print(current_version)
     if not secret_header:
         return jsonify({"error": "Service not found"}), 403
     if current_version:
