@@ -9,6 +9,7 @@ LOCAL_URL = 'http://127.0.0.1:5000/send?chat_id='
 ALIVE='alive'
 OFF='not reachable'
 ERR='error'
+OFFLINE='offline'
 SCHEDULE_PING=1
 SCHEDULE_LISTEN=1
 SCHEDULE_API=2
@@ -19,7 +20,7 @@ SCHEDULE_SEND_NOTIFICATION=3
 YASNO_URL = 'https://api.yasno.com.ua/api/v1/pages/home/schedule-turn-off-electricity'
 DTEK_CHANNEL_ID = '@dtek_ua'
 MAX_SPOTS = 5
-api_list = {'custom_api1':'Smart devices', 'invertor_api1':'Dessmonitor'}
+api_list = {'custom_api1':'Smart devices', 'invertor_api1':'Dessmonitor', 'invertor_api2':'PVbutler'}
 isPostOK="F"
 msg_greeting="Вітаю! Налаштуйте бот для перевірки доступності IP адреси кожну хвилину (для старту моніторингу адреса має бути доступна), або ввімкніть режим прослуховування. Є можливість публікації повідомлень у канал (для цього попередньо додайте бот в канал)"
 msg_comeback="З поверненням!"

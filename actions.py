@@ -14,13 +14,24 @@ import pytz, json
 # Create a logger
 logger = init_logger('eSvitlo-actions', './logs/esvitlo.log')
 
-def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> utils.PingResult:
+def _ping_(spot: Spot, immediately: bool = False, force_state:str = None) -> utils.PingResult:
     def _changed(spot: Spot, status) -> bool:
+        if status == cfg.OFFLINE: return False
         return False if spot.last_state and status==spot.last_state else True
 
     def _spot_update(spot: Spot, changed:bool, status):
         if changed: spot.new_state(status)
         if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))
+
+    def _battery_update(battery: Invertor, status:str, new_charge_level:float):
+        battery.battery_lvl = new_charge_level
+        battery.is_offline = (status == cfg.OFFLINE)
+        if not battery.last_battery_treshold:
+            battery.last_battery_treshold = float(10*int(new_charge_level/10))
+        elif int(new_charge_level/10) == 10:
+            battery.last_battery_treshold = 90.0 
+        elif not int(new_charge_level/10) == int(battery.last_battery_treshold/10): 
+            battery.last_battery_treshold = float(10*int(new_charge_level/10)) 
 
     if force_state and not spot.endpoint:
         status = force_state
@@ -60,10 +71,10 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
         status = utils.check_invertor(spot, utils._check_invertor1)
         changed = _changed(spot, status.status)
         msg = get_battery_state_msg(spot, battery, status, immediately)
-        if changed or immediately:
+        if changed or immediately or status.status == cfg.OFFLINE:
             logger.info(f'API invertor 1 call: User {spot.user_id} - status: {status.status}, changed:{changed}')
         _spot_update(spot, changed, status.status)
-        battery.battery_lvl = status.battery
+        _battery_update(battery, status.status, status.battery)
         return utils.PingResult(changed, msg)
     elif not spot.ip_address and spot.endpoint == 'invertor_api2':
         battery = Invertor(spot.chat_id)
@@ -73,7 +84,7 @@ def _ping_ip(spot: Spot, immediately: bool = False, force_state:str = None) -> u
         if changed or immediately:
             logger.info(f'API invertor 2 call: User {spot.user_id} - status: {status.status}, changed:{changed}')
         _spot_update(spot, changed, status.status)
-        battery.battery_lvl = status.battery
+        _battery_update(battery, status.status, status.battery)
         return utils.PingResult(changed, msg)
     else: utils.PingResult(False, "")
 
@@ -86,7 +97,7 @@ def _ping(user_id:int, chat_id:str, bot:Bot, force_state:str = None):
         spot.ping_job = None
         delete_ping_job(spot)
     try:
-        result = _ping_ip(spot, False, force_state)
+        result = _ping_(spot, False, force_state)
         msg    = utils.get_text_safe_to_markdown(result.message)
         utils._sender(spot, msg, bot, f'_ping({user_id},{chat_id},bot,{force_state})')
     except Exception as e:
@@ -144,7 +155,7 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     if not spot.ip_address and not spot.listener and not spot.endpoint:
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
-    if not spot.ip_address and spot.endpoint == 'invertor_api1':
+    if not spot.ip_address and spot.endpoint[:8] == 'invertor':
         battery = Invertor(spot.chat_id)
         status = utils.InvertorStatus(spot.last_state, battery.battery_lvl)
         message = get_battery_state_msg(spot, battery, status, True)

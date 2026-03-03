@@ -224,9 +224,10 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
     def battery_level_verbiage() -> str:
         return f"{'🔋' if status.battery >= 40.0 else '🪫'} Рівень заряду батарей: *{status.battery:.0f}%*\n"
     
-    def battery_level_changed(old_level:float, new_level:float) -> bool:
-        if abs(new_level - old_level) < 1.0: return False # Minor changes
-        return True if int(new_level)%3 == 0 else False
+    def battery_level_changed(treshold_level:float, new_level:float) -> bool:
+        if int(new_level/10) == 10: return False # Do not spam for 99 to 100%
+        if not treshold_level: return False # Let's wait until treshold will be set
+        return (not int(new_level/10) == int(treshold_level/10))
     
     now_ts_short = datetime.now(TIMEZONE).strftime('%H:%M')
     delta = datetime.now(TIMEZONE).replace(tzinfo=None) - spot.last_ts if spot.last_ts else timedelta(seconds=1)
@@ -241,15 +242,19 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
         return
     # turned on
     if spot.last_state and status.status == cfg.ALIVE and spot.last_state != cfg.ALIVE:
-        msg += f"⚡️*{now_ts_short}* Юху! Батареї заряджаються!\n"
+        msg += f"⚡️*{now_ts_short}*Батареї заряджаються!\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від батарей *" + get_string_period(delta) + "*"
 
     # turned off
     elif spot.last_state and status.status == cfg.OFF and spot.last_state != cfg.OFF:
-        msg += f"🔦*{now_ts_short}* Йой… Халепа, знову робота від батарей 😒\n"
+        msg += f"🔦*{now_ts_short}*Знову робота від батарей 😒\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від мережі *" + get_string_period(delta) + "*"
+    
+    # if offline
+    elif status.status == cfg.OFFLINE and not battery.is_offline:
+        msg += f"❗️*{now_ts_short}* Нажаль, зараз інвертор офлайн, перевірте зв'язок 😒\n"
 
     # error
     elif spot.last_state and status.status == cfg.ERR and spot.last_state != cfg.ERR:
@@ -271,10 +276,10 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
     # follow the battery state
     elif spot.last_state and spot.last_state == status.status:
         # Battery level changed
-        if battery_level_changed(battery.battery_lvl, status.battery):
-            if battery.battery_lvl >= 97.0 and status.battery > battery.battery_lvl: 
+        if battery_level_changed(battery.last_battery_treshold, status.battery):
+            if battery.battery_lvl >= 95.0 and status.battery > battery.battery_lvl: 
                 msg += "🔋 Батареї заряджено!\n"
-            elif status.battery >= 97.0: msg = ""
+            elif status.battery >= 95.0: msg = ""
             else: 
                 if status.status == cfg.ALIVE:
                     msg += "⏱ Час роботи від мережі *" + get_string_period(delta) + "*\n"
