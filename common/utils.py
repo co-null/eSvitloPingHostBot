@@ -191,7 +191,7 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
 def check_invertor(spot: Spot, function) -> InvertorStatus:
     for _ in range(4):
         result:InvertorStatus = function(spot)
-        if result.status == cfg.ALIVE or result.status == cfg.OFF: return result
+        if not result.status == cfg.ERR: return result
         else: 
             logger.info(f"{function}({spot.chat_id}) attempt {_+1} failed: {result.status}")
             time.sleep(3)
