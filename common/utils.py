@@ -184,7 +184,7 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
         10: PV Charging and Bypass (Grid) Output, 11: Grid Charging and Bypass (Grid) Output, 12: Bypass (Grid) Output, 
         13: Solar Charging and Discharging Simultaneously, 14: Grid Charging and Discharging Simultaneously) '''
     if battery_status in ['10', '11', '12']: battery_status = cfg.ALIVE
-    elif battery_status == '0': battery_status = cfg.OFFLINE
+    elif battery_status in ['-1', '0']: battery_status = cfg.OFFLINE
     else: battery_status = cfg.OFF
     return InvertorStatus(battery_status, battery_charged)
 
