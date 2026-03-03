@@ -253,8 +253,8 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
         msg +=  "⏱ Час роботи від мережі *" + get_string_period(delta) + "*"
     
     # if offline
-    elif status.status == cfg.OFFLINE and not battery.is_offline:
-        msg += f"❗️*{now_ts_short}* Нажаль, зараз інвертор офлайн, перевірте зв'язок 😒\n"
+    #elif status.status == cfg.OFFLINE and not battery.is_offline:
+    #    msg += f"❗️*{now_ts_short}* Нажаль, зараз інвертор офлайн, перевірте зв'язок 😒\n"
 
     # error
     elif spot.last_state and status.status == cfg.ERR and spot.last_state != cfg.ERR:
