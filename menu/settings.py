@@ -415,7 +415,7 @@ def post_to_channel(update: Update, context: CallbackContext, bot: Bot, args: st
 
 def _start_ping(spot: Spot, bot: Bot) -> None:
     spot.ping_job = 'scheduled'
-    spot.interval = cfg.SCHEDULE_PING if spot.ip_address else cfg.SCHEDULE_API
+    spot.interval = cfg.SCHEDULE_PING if spot.ip_address else (cfg.SCHEDULE_INVERTOR_API if spot.endpoint[:8]== 'invertor' else cfg.SCHEDULE_API)
     spot.refresh()
     recreate_job(spot, _ping, _listen, bot)
     # Initial ping immediately

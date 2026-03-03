@@ -1,7 +1,7 @@
 import config as cfg
 import platform, subprocess, time, socket, ast
 import requests as urlr
-import urllib.parse
+import urllib.parse, random
 from telegram import Update, Bot, constants
 from common.logger import init_logger
 from structure.spot import Spot
@@ -127,14 +127,14 @@ def _check_invertor1(spot: Spot) -> InvertorStatus:
     ENDPOINT = "https://web.dessmonitor.com/public/?sign={}&salt={}&token={}&action=webQueryDeviceEnergyFlowEs&source={}&devcode={}&pn={}&devaddr={}&sn={}"
     if not spot.headers: raise Exception("Empty Header")
     headers:dict = ast.literal_eval(spot.headers)
-    sign    = headers['sign']#'5d37a9c9f2a78b48d9bab2299074714d1c17c275'
-    salt    = headers['salt']#'1771774737010'
-    token   = headers['token']#'CN453efa3f-6254-4319-8ae3-a3c0a7a79e4d'
-    source  = headers['source']#'1'
-    devcode = headers['devcode']#'2376'
-    pn      = headers['pn']#'E50000252282209979'
+    sign    = headers['sign']
+    salt    = headers['salt']
+    token   = headers['token']
+    source  = headers['source']
+    devcode = headers['devcode']
+    pn      = headers['pn']
     devaddr = headers['devaddr']#'1'
-    sn      = headers['sn']#'E50000252282209979094801'
+    sn      = headers['sn']
 
     response = urlr.get(ENDPOINT.format(sign, salt, token, source, devcode, pn, devaddr, sn), timeout=30)
     data = response.json()
@@ -143,7 +143,10 @@ def _check_invertor1(spot: Spot) -> InvertorStatus:
         battery_status = str(([x['status'] for x in data if x['par'] == 'bt_battery_capacity'])[0])
         battery_charged = float(([x['val'] for x in data if x['par'] == 'bt_battery_capacity'])[0])
         #logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
-        battery_status = cfg.ALIVE if battery_status == '-1' else (cfg.OFF if battery_status == '1' else cfg.ERR)
+        if battery_status == '-1': battery_status = cfg.ALIVE
+        elif battery_status == '1': battery_status = cfg.OFF
+        elif battery_status == '0': battery_status = cfg.OFFLINE
+        else: battery_status = cfg.ERR
         return InvertorStatus(battery_status, battery_charged)
     except Exception as e:
         logger.warning(f'check_invertor1(chat_id={spot.chat_id}) error: {str(e)}')
@@ -157,10 +160,10 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
 
     if not spot.headers: raise Exception("Empty Header")
     headers:dict = ast.literal_eval(spot.headers)
-    plantId = headers['plantId']#'35102'
-    storage = headers['storageSn']#'ZRK0CLP0KV'
-    jsess   = headers['jsess']#'C3AF818D10B2D9336DA212F6E4421495'
-    token   = headers['token']#'6697b7da82dbce3b435091b7e346cfc4'
+    plantId = headers['plantId']
+    storage = headers['storageSn']
+    jsess   = headers['jsess']
+    token   = headers['token']
 
     session = urlr.Session()
     session.cookies = urlr.utils.cookiejar_from_dict(make_cookiejar_dict(COOKIES.format(jsess, token)))
@@ -172,6 +175,7 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
     except Exception as e:
         logger.error(f'_check_invertor2(chat_id={spot.chat_id}) broken request, please resubmit spot parameters')
         return InvertorStatus(cfg.ERR, 0.0) 
+    #logger.info(f"Spot: {spot.chat_id} got json_response {json_response}")
     battery_status = str(json_response['obj']['status'])
     battery_charged = float(json_response['obj']['capacity'])
     #logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
@@ -179,7 +183,9 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
         7: Grid Charging, 8: Combined Charging (both solar and grid), 9: Combined Charging and Bypass (Grid) Output, 
         10: PV Charging and Bypass (Grid) Output, 11: Grid Charging and Bypass (Grid) Output, 12: Bypass (Grid) Output, 
         13: Solar Charging and Discharging Simultaneously, 14: Grid Charging and Discharging Simultaneously) '''
-    battery_status = cfg.ALIVE if battery_status in ['10', '11', '12'] else cfg.OFF
+    if battery_status in ['10', '11', '12']: battery_status = cfg.ALIVE
+    elif battery_status == '0': battery_status = cfg.OFFLINE
+    else: battery_status = cfg.OFF
     return InvertorStatus(battery_status, battery_charged)
 
 def check_invertor(spot: Spot, function) -> InvertorStatus:

@@ -26,11 +26,6 @@ class Spot(Base):
     to_bot           = Column(Integer, default=1)
     to_channel       = Column(Integer, default=0)
     ping_job         = Column(String)
-    awaiting_ip      = Column(Integer, default=0)
-    awaiting_label   = Column(Integer, default=0)
-    awaiting_channel = Column(Integer, default=0)
-    awaiting_city    = Column(Integer, default=0)
-    awaiting_group   = Column(Integer, default=0)
     has_schedule     = Column(Integer, default=0)
     city             = Column(String)
     sch_group        = Column(String)
@@ -78,5 +73,7 @@ class SpotNotification(Base):
 
 class SpotInvertor(Base):
     __tablename__ = 'spot_invertor'
-    chat_id        = Column(String, ForeignKey('spot.chat_id'), primary_key=True)
-    battery_lvl    = Column(DECIMAL)
+    chat_id                 = Column(String, ForeignKey('spot.chat_id'), primary_key=True)
+    battery_lvl             = Column(DECIMAL)
+    last_battery_treshold   = Column(DECIMAL)
+    is_offline              = Column(Integer, default=0)
