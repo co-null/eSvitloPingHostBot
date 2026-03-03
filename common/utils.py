@@ -175,7 +175,7 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
     except Exception as e:
         logger.error(f'_check_invertor2(chat_id={spot.chat_id}) broken request, please resubmit spot parameters')
         return InvertorStatus(cfg.ERR, 0.0) 
-    #logger.info(f"Spot: {spot.chat_id} got json_response {json_response}")
+    logger.info(f"Spot: {spot.chat_id} got json_response {json_response}")
     battery_status = str(json_response['obj']['status'])
     battery_charged = float(json_response['obj']['capacity'])
     #logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
@@ -191,7 +191,7 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
 def check_invertor(spot: Spot, function) -> InvertorStatus:
     for _ in range(4):
         result:InvertorStatus = function(spot)
-        if result.status == cfg.ALIVE or result.status == cfg.OFF: return result
+        if not result.status == cfg.ERR: return result
         else: 
             logger.info(f"{function}({spot.chat_id}) attempt {_+1} failed: {result.status}")
             time.sleep(3)
