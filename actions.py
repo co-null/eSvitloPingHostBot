@@ -24,8 +24,8 @@ def _ping_(spot: Spot, immediately: bool = False, force_state:str = None) -> uti
         if status == cfg.ALIVE: spot.last_heared_ts = datetime.now(pytz.timezone(cfg.TZ))
 
     def _battery_update(battery: Invertor, status:str, new_charge_level:float):
-        battery.battery_lvl = new_charge_level
         battery.is_offline = (status == cfg.OFFLINE)
+        if not battery.is_offline: battery.battery_lvl = new_charge_level
         if not battery.last_battery_treshold:
             battery.last_battery_treshold = float(10*int(new_charge_level/10))
         elif int(new_charge_level/10) == 10:
