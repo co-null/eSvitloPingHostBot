@@ -200,6 +200,8 @@ def set_iapi1(update: Update, context: CallbackContext, bot: Bot, args: str) -> 
             return
         spot.endpoint = 'invertor_api1'
         spot.ip_address = None
+        spot.listener = False
+        delete_ping_job(spot)
         spot.refresh()
         reply_md(f'API Dessmonitor налаштовано', 
                  update, bot, reply_markup=reply_markup)
@@ -232,6 +234,8 @@ def set_iapi2(update: Update, context: CallbackContext, bot: Bot, args: str) -> 
             return
         spot.endpoint = 'invertor_api2'
         spot.ip_address = None
+        spot.listener = False
+        delete_ping_job(spot)
         spot.refresh()
         reply_md(f'API PVbutler налаштовано', 
                  update, bot, reply_markup=reply_markup)

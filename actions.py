@@ -152,6 +152,7 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     context.user_data['requestor'] = None
     buttons = [[InlineKeyboardButton('OK', callback_data=json.dumps({'cmd':'main_menu'}))]]
     reply_markup = InlineKeyboardMarkup(buttons)
+    logger.info(f"User {user_id} asked state for spot {spot_id}, parameters: ip_address={spot.ip_address}, listener={spot.listener}, api={spot.endpoint}")
     if not spot.ip_address and not spot.listener and not spot.endpoint:
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
