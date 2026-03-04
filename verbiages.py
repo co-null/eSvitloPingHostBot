@@ -242,13 +242,13 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
         return
     # turned on
     if spot.last_state and status.status == cfg.ALIVE and spot.last_state != cfg.ALIVE:
-        msg += f"⚡️*{now_ts_short}*Батареї заряджаються!\n"
+        msg += f"⚡️*{now_ts_short}* Батареї заряджаються!\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від батарей *" + get_string_period(delta) + "*"
 
     # turned off
     elif spot.last_state and status.status == cfg.OFF and spot.last_state != cfg.OFF:
-        msg += f"🔦*{now_ts_short}*Знову робота від батарей 😒\n"
+        msg += f"🔦*{now_ts_short}* Знову робота від батарей 😒\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від мережі *" + get_string_period(delta) + "*"
     
