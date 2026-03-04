@@ -156,7 +156,7 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     if not spot.ip_address and not spot.listener and not spot.endpoint:
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
-    if not spot.ip_address and spot.endpoint[:8] == 'invertor':
+    if spot.endpoint and spot.endpoint[:8] == 'invertor':
         logger.info(f"User {user_id} asked state for invertor")
         battery = Invertor(spot.chat_id)
         status = utils.InvertorStatus(spot.last_state, battery.battery_lvl)
