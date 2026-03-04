@@ -28,8 +28,8 @@ def _ping_(spot: Spot, immediately: bool = False, force_state:str = None) -> uti
         if not battery.is_offline: battery.battery_lvl = new_charge_level
         if not battery.last_battery_treshold:
             battery.last_battery_treshold = float(10*int(new_charge_level/10))
-        elif int(new_charge_level/10) == 10:
-            battery.last_battery_treshold = 90.0 
+        elif new_charge_level >= 95.0:
+            battery.last_battery_treshold = 95.0 
         elif not int(new_charge_level/10) == int(battery.last_battery_treshold/10): 
             battery.last_battery_treshold = float(10*int(new_charge_level/10)) 
 
@@ -152,19 +152,19 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
     context.user_data['requestor'] = None
     buttons = [[InlineKeyboardButton('OK', callback_data=json.dumps({'cmd':'main_menu'}))]]
     reply_markup = InlineKeyboardMarkup(buttons)
-    logger.info(f"User {user_id} asked state for spot {spot_id}, parameters: ip_address={spot.ip_address}, listener={spot.listener}, api={spot.endpoint}")
+    #logger.info(f"User {user_id} asked state for spot {spot_id}, parameters: ip_address={spot.ip_address}, listener={spot.listener}, api={spot.endpoint}")
     if not spot.ip_address and not spot.listener and not spot.endpoint:
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
     if spot.endpoint and spot.endpoint[:8] == 'invertor':
-        logger.info(f"User {user_id} asked state for invertor")
+        #logger.info(f"User {user_id} asked state for invertor")
         battery = Invertor(spot.chat_id)
         status = utils.InvertorStatus(spot.last_state, battery.battery_lvl)
         message = get_battery_state_msg(spot, battery, status, True)
     else:
-        logger.info(f"User {user_id} asked state for IP/Listener")
+        #logger.info(f"User {user_id} asked state for IP/Listener")
         message = get_state_msg(spot, spot.last_state, True)
-    logger.info(f"User {user_id} gor message '{message}'")
+    #logger.info(f"User {user_id} gor message '{message}'")
     message  = utils.get_text_safe_to_markdown(message)
     utils._sender(spot, message, bot, 'ping_now()', True)
 
