@@ -157,11 +157,14 @@ def ping_now(update: Update, context: CallbackContext, bot:Bot, args:str = '{}')
         utils.reply_md(cfg.msg_notset, update, bot, reply_markup)
         return
     if not spot.ip_address and spot.endpoint[:8] == 'invertor':
+        logger.info(f"User {user_id} asked state for invertor")
         battery = Invertor(spot.chat_id)
         status = utils.InvertorStatus(spot.last_state, battery.battery_lvl)
         message = get_battery_state_msg(spot, battery, status, True)
     else:
+        logger.info(f"User {user_id} asked state for IP/Listener")
         message = get_state_msg(spot, spot.last_state, True)
+    logger.info(f"User {user_id} gor message '{message}'")
     message  = utils.get_text_safe_to_markdown(message)
     utils._sender(spot, message, bot, 'ping_now()', True)
 
