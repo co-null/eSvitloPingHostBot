@@ -225,7 +225,8 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
         return f"{'🔋' if status.battery >= 40.0 else '🪫'} Рівень заряду батарей: *{status.battery:.0f}%*\n"
     
     def battery_level_changed(treshold_level:float, new_level:float) -> bool:
-        if int(new_level/10) == 10: return False # Do not spam for 99 to 100%
+        if new_level >= 95.0 and treshold_level >= 95.0: return False # Do not spam for charged
+        if new_level >= 95.0 and treshold_level < 95.0: return True # Charged
         if not treshold_level: return False # Let's wait until treshold will be set
         return (not int(new_level/10) == int(treshold_level/10))
     
@@ -277,7 +278,7 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
     elif spot.last_state and spot.last_state == status.status:
         # Battery level changed
         if battery_level_changed(battery.last_battery_treshold, status.battery):
-            if battery.battery_lvl >= 95.0 and status.battery > battery.battery_lvl: 
+            if status.battery >= 95.0 and status.battery > battery.battery_lvl: 
                 msg += "🔋 Батареї заряджено!\n"
             elif status.battery >= 95.0: msg = ""
             else: 
