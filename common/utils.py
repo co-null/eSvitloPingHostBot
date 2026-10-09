@@ -1,3 +1,4 @@
+import json
 import config as cfg
 import platform, subprocess, time, socket, ast
 import requests as urlr
@@ -104,6 +105,8 @@ def parse_invertor1(request_string:str, spot: Spot) ->None:
         raise Exception("Wrong input string")
     
 def parse_invertor2(headers_string:str, spot: Spot) ->None:
+    endpoint = "https://server.pvbutler.com/storage.do?op=getStoragesInfo"
+    login_headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
     if spot.headers: 
         headers:dict = ast.literal_eval((spot.headers))
     else: headers = {}
@@ -116,10 +119,20 @@ def parse_invertor2(headers_string:str, spot: Spot) ->None:
             break
         if cookies:
             headers['plantId']   =  cookies['selectedPlantId']
-            headers['storageSn'] =  ast.literal_eval(urllib.parse.unquote(cookies['memoryDeviceSn']))[0]['value'][8:]
+            #headers['storageSn'] =  ast.literal_eval(urllib.parse.unquote(cookies['memoryDeviceSn']))[0]['value'][8:]
             headers['jsess']     =  cookies['JSESSIONID']
-            headers['token']     =  cookies['assToken']
+            #headers['token']     =  cookies['assToken']
             spot.headers = str(headers)
+
+        cookies_str = f"JSESSIONID={headers['jsess']}"
+        cj = urlr.utils.cookiejar_from_dict(make_cookiejar_dict(cookies_str))
+        sess = urlr.Session()
+        sess.cookies = cj
+        payload = f"plantId={headers['plantId']}"
+        req = sess.post(endpoint, headers=login_headers, data=payload) 
+        resp = json.loads(req.text)
+        headers['storageSn'] = resp['storages'][0]['serialNum']
+        spot.headers = str(headers)
     else:
         raise Exception("Wrong input string")
 

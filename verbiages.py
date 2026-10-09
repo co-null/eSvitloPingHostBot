@@ -242,13 +242,13 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
             msg += "Моніториться статус батареї\n"
         return
     # turned on
-    if spot.last_state and status.status == cfg.ALIVE and spot.last_state != cfg.ALIVE:
+    if status.status == cfg.ALIVE and spot.last_state != cfg.ALIVE:
         msg += f"⚡️*{now_ts_short}* Батареї заряджаються!\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від батарей *" + get_string_period(delta) + "*"
 
     # turned off
-    elif spot.last_state and status.status == cfg.OFF and spot.last_state != cfg.OFF:
+    elif status.status == cfg.OFF and spot.last_state != cfg.OFF:
         msg += f"🔦*{now_ts_short}* Знову робота від батарей 😒\n"
         msg += battery_level_verbiage()
         msg +=  "⏱ Час роботи від мережі *" + get_string_period(delta) + "*"
@@ -258,7 +258,7 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
     #    msg += f"❗️*{now_ts_short}* Нажаль, зараз інвертор офлайн, перевірте зв'язок 😒\n"
 
     # error
-    elif spot.last_state and status.status == cfg.ERR and spot.last_state != cfg.ERR:
+    elif status.status == cfg.ERR and spot.last_state != cfg.ERR:
         msg += f"❗️*{now_ts_short}* Некоректний статус у відповіді, перевірте налаштування 😒\n"
     
     # instant
@@ -275,7 +275,7 @@ def get_battery_state_msg(spot: Spot, battery:Invertor, status: utils.InvertorSt
             msg += battery_level_verbiage()
 
     # follow the battery state
-    elif spot.last_state and spot.last_state == status.status:
+    elif spot.last_state == status.status:
         # Battery level changed
         if battery_level_changed(battery.last_battery_treshold, status.battery):
             if status.battery >= 95.0 and status.battery > battery.battery_lvl: 
