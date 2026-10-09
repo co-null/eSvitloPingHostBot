@@ -167,21 +167,21 @@ def _check_invertor1(spot: Spot) -> InvertorStatus:
 
 def _check_invertor2(spot: Spot) -> InvertorStatus:
     ENDPOINT = "https://server.pvbutler.com/storage.do?op=getSystemStatus"
-    API_HEADER = {'Content-Type': 'application/x-www-form-urlencoded'}
+    API_HEADER = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
     PAYLOAD = "plantId={}&storageId={}"
-    COOKIES = "lang=en; JSESSIONID={}; assToken={}"
+    COOKIES = "JSESSIONID={}; selectedPlantId={}"
 
     if not spot.headers: raise Exception("Empty Header")
     headers:dict = ast.literal_eval(spot.headers)
     plantId = headers['plantId']
     storage = headers['storageSn']
     jsess   = headers['jsess']
-    token   = headers['token']
+    #token   = headers['token']
 
     session = urlr.Session()
-    session.cookies = urlr.utils.cookiejar_from_dict(make_cookiejar_dict(COOKIES.format(jsess, token)))
+    session.cookies = urlr.utils.cookiejar_from_dict(make_cookiejar_dict(COOKIES.format(jsess, plantId)))
 
-    request = session.post(ENDPOINT.format(plantId), headers=API_HEADER, data=PAYLOAD.format(plantId, storage),timeout=30) 
+    request = session.post(ENDPOINT, headers=API_HEADER, data=PAYLOAD.format(plantId, storage),timeout=60) 
     response = request.text
     try:
         json_response = ast.literal_eval(response)
