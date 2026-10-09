@@ -153,9 +153,9 @@ def _check_invertor1(spot: Spot) -> InvertorStatus:
         return InvertorStatus(cfg.ERR, 0.0) 
 
 def _check_invertor2(spot: Spot) -> InvertorStatus:
-    ENDPOINT = "https://server.pvbutler.com/panel/storage/getStorageStatusData?plantId={}"
+    ENDPOINT = "https://server.pvbutler.com/storage.do?op=getSystemStatus"
     API_HEADER = {'Content-Type': 'application/x-www-form-urlencoded'}
-    PAYLOAD = "plantId={}&storageSn={}"
+    PAYLOAD = "plantId={}&storageId={}"
     COOKIES = "lang=en; JSESSIONID={}; assToken={}"
 
     if not spot.headers: raise Exception("Empty Header")
