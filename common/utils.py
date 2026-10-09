@@ -189,8 +189,8 @@ def _check_invertor2(spot: Spot) -> InvertorStatus:
         logger.error(f'_check_invertor2(chat_id={spot.chat_id}) broken request, please resubmit spot parameters')
         return InvertorStatus(cfg.ERR, 0.0) 
     logger.info(f"Spot: {spot.chat_id} got json_response {json_response}")
-    battery_status = str(json_response['obj']['status'])
-    battery_charged = float(json_response['obj']['capacity'])
+    battery_status = str(json_response['status'])
+    battery_charged = float(json_response['capacity'])
     logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
     ''' Device status, status (0: Offline, 1: Online, 2: Charging, 3: Discharging, 4: Error, 5: Burning, 6: Solar Charging, 
         7: Grid Charging, 8: Combined Charging (both solar and grid), 9: Combined Charging and Bypass (Grid) Output, 
