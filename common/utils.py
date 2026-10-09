@@ -149,13 +149,13 @@ def _check_invertor1(spot: Spot) -> InvertorStatus:
     devaddr = headers['devaddr']#'1'
     sn      = headers['sn']
 
-    response = urlr.get(ENDPOINT.format(sign, salt, token, source, devcode, pn, devaddr, sn), timeout=30)
+    response = urlr.get(ENDPOINT.format(sign, salt, token, source, devcode, pn, devaddr, sn), timeout=60)
     data = response.json()
     data = get_key_safe(get_key_safe(data, 'dat', {}), 'bt_status', {})
     try:
         battery_status = str(([x['status'] for x in data if x['par'] == 'bt_battery_capacity'])[0])
         battery_charged = float(([x['val'] for x in data if x['par'] == 'bt_battery_capacity'])[0])
-        #logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
+        logger.info(f"Spot: {spot.chat_id} got state {battery_status} level {battery_charged}")
         if battery_status == '-1': battery_status = cfg.ALIVE
         elif battery_status == '1': battery_status = cfg.OFF
         elif battery_status == '0': battery_status = cfg.OFFLINE
