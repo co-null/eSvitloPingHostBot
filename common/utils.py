@@ -105,7 +105,7 @@ def parse_invertor1(request_string:str, spot: Spot) ->None:
         raise Exception("Wrong input string")
     
 def parse_invertor2(headers_string:str, spot: Spot) ->None:
-    endpoint = "https://server.pvbutler.com/storage.do?op=getStoragesInfo"
+    endpoint = "https://server.pvbutler.com/panel/getDevicesByPlant"
     login_headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
     if spot.headers: 
         headers:dict = ast.literal_eval((spot.headers))
@@ -131,7 +131,7 @@ def parse_invertor2(headers_string:str, spot: Spot) ->None:
         payload = f"plantId={headers['plantId']}"
         req = sess.post(endpoint, headers=login_headers, data=payload) 
         resp = json.loads(req.text)
-        headers['storageSn'] = resp['storages'][0]['serialNum']
+        headers['storageSn'] = resp['obj']['storage'][0][0]
         spot.headers = str(headers)
     else:
         raise Exception("Wrong input string")
